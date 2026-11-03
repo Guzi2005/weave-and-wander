@@ -46,8 +46,16 @@ func build(top: Vector3) -> Dictionary:
 		var drop := length * rng.randf_range(.82, 1.04)
 		var radial := spread * sqrt(rng.randf())
 		var center := top + Vector3(cos(angle) * radial, -drop, sin(angle) * radial)
-		Mosuo._append_sphere(data.vertices, data.indices, data.arm_weights,
-			center, puff_radius * rng.randf_range(.75, 1.2))
+		var radius := puff_radius * rng.randf_range(.75, 1.2)
+		Mosuo._append_sphere(data.vertices, data.indices, data.arm_weights, center, radius)
+		# Individual bent yarn tips break up the silhouette of each wool tuft.
+		for fiber in 14:
+			var azimuth := fiber * 2.39996 + angle
+			var dy := 1.0 - 2.0 * (fiber + .5) / 14.0
+			var radial_dir := sqrt(1.0 - dy * dy)
+			var axis := Vector3(radial_dir * cos(azimuth), dy, radial_dir * sin(azimuth))
+			var tip := center + axis * radius * rng.randf_range(1.16, 1.42)
+			_strand(center + axis * radius * .76, tip + Vector3.DOWN * .003, strand_radius * .38, data)
 	var out := {}
 	for index in groups.size():
 		var data: Dictionary = groups[index]

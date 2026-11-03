@@ -6,32 +6,11 @@ var doll: Node3D
 func apply(target: Node3D) -> void:
 	doll = target
 	_strip_base_costume()
-	_part(doll.clothes_root, "UkrShirt", Costume.shirt_body(), Costume.COLOR_SHIRT)
-	_part(doll.clothes_root, "UkrShirtCollar", Costume.shirt_collar(), Costume.COLOR_SHIRT)
-	_part(doll.clothes_root, "UkrCuffs", Costume.shirt_cuffs(), Costume.COLOR_SHIRT)
-	_part(doll.clothes_root, "UkrNeckBow", Costume.neck_bow(), Costume.COLOR_RIBBON)
-	var beads = Costume.neck_beads()
-	_part(doll.clothes_root, "UkrBeadsDark", beads["dark"], Costume.COLOR_BEAD_DARK)
-	_part(doll.clothes_root, "UkrBeadsLight", beads["light"], Costume.COLOR_BEAD_LIGHT)
-	_part(doll.skirt_root, "UkrUnderskirt", Costume.underskirt(), Costume.COLOR_SHIRT)
-	_part(doll.skirt_root, "UkrUnderskirtHemA", Costume.underskirt_hem_band(.90, .915), Costume.COLOR_SHIRT.darkened(.10))
-	_part(doll.skirt_root, "UkrUnderskirtHemB", Costume.underskirt_hem_band(.96, .975), Costume.COLOR_SHIRT.darkened(.06))
-	_part(doll.skirt_root, "UkrOverskirtBase", Costume.overskirt("base"), Costume.stripe_asset().color_for("base"))
-	_part(doll.skirt_root, "UkrOverskirtShade", Costume.overskirt("base_shade"), Costume.stripe_asset().color_for("base_shade"))
-	_part(doll.skirt_root, "UkrOverskirtYellow", Costume.overskirt("yellow"), Costume.stripe_asset().color_for("yellow"))
-	_part(doll.skirt_root, "UkrOverskirtGreen", Costume.overskirt("green"), Costume.stripe_asset().color_for("green"))
-	_part(doll.skirt_root, "UkrOverskirtPurple", Costume.overskirt("purple"), Costume.stripe_asset().color_for("purple"))
-	_part(doll.skirt_root, "UkrApron", Costume.apron(), Costume.COLOR_APRON)
-	_part(doll.skirt_root, "UkrApronHemBand", Costume.apron_hem_band(), Costume.COLOR_APRON.darkened(.15))
-	_part(doll.clothes_root, "UkrSashWrap", Costume.sash_wrap(), Costume.COLOR_SASH)
-	_part(doll.clothes_root, "UkrSashKnot", Costume.sash_knot(), Costume.COLOR_SASH)
-	for side in [-1.0, 1.0]:
-		var suffix = "L" if side < 0.0 else "R"
-		_part(doll.clothes_root, "UkrSashTail" + suffix, Costume.sash_tail(side), Costume.COLOR_SASH)
-		var groups = Costume.sash_tassels(side)
-		for index in groups.size():
-			var color: Color = Costume.tassel_asset().colors[index]
-			_part(doll.clothes_root, "UkrTassel%d%s" % [index, suffix], groups[index], color)
+	for label in preload("res://scripts/ukrainian_blender_mesh.gd").names():
+		var data := preload("res://scripts/ukrainian_blender_mesh.gd").geometry(label)
+		if data.slot == "hair": continue
+		var parent: Node3D = doll.skirt_root if data.slot == "bottom" else doll.clothes_root
+		_part(parent, label, data, Color.WHITE)
 
 
 func _strip_base_costume() -> void:
@@ -80,6 +59,13 @@ func _part(parent: Node3D, label: String, data: Dictionary, color: Color) -> Mes
 			arrays[Mesh.ARRAY_TEX_UV] = data.uv
 		if data.has("colors"):
 			arrays[Mesh.ARRAY_COLOR] = data.colors
+			var woven := ShaderMaterial.new()
+			woven.shader = preload("res://shaders/doll_costume.gdshader")
+			woven.set_shader_parameter("pigment", color)
+			woven.set_shader_parameter("use_vertex_color", true)
+			woven.set_shader_parameter("relief_strength", .38)
+			woven.set_shader_parameter("tone_steps", 8.0)
+			part.material_override = woven
 		var mesh = ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		part.mesh = mesh

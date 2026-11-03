@@ -76,7 +76,7 @@ func _export() -> void:
 					if source.get_shader_parameter("use_pigment_map"):
 						mat.albedo_texture = source.get_shader_parameter("pigment_map")
 				mat.roughness = 1.0
-				if str(part.name).begins_with("Ukr"):
+				if str(part.name).begins_with("Ukr") or str(part.name) == "ReferenceBob":
 					mat.roughness = .38 if str(part.name).begins_with("UkrBeads") else .92
 				else:
 					mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

@@ -8,6 +8,7 @@ uniform vec4 pigment : source_color = vec4(1.0);
 uniform sampler2D pigment_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool use_pigment_map = false;
 uniform bool use_vertex_color = false;
+uniform float relief_strength = 0.06;
 uniform float tooth = 0.075;
 uniform float tone_steps = 2.0;
 uniform float backface_shade = 0.0;
@@ -36,5 +37,5 @@ void fragment() {
 	float level = clamp((light + 0.45) / 1.4, 0.0, 1.0);
 	float stepped = floor(level * tone_steps) / tone_steps;
 	float lining = FRONT_FACING ? 1.0 : 1.0 - backface_shade;
-	ALBEDO = ink * (0.94 + 0.06 * stepped) * lining * (1.0 + (grain - 0.5) * tooth * fade);
+	ALBEDO = ink * (1.0 - relief_strength + relief_strength * level) * lining * (1.0 + (grain - 0.5) * tooth * fade);
 }

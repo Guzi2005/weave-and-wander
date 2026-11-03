@@ -124,6 +124,11 @@ static func skirt_shell(rings: Array, opts: Dictionary, role: String) -> Diction
 				var fold := depth * _pleat_wave(angle, count, sharpness)
 				var rx := ring.y + fold + lift - inward
 				var rz := ring.z + fold + lift - inward
+				# Match the front and profile silhouettes of the Blender turnaround.
+				if rings == OVERSKIRT_RINGS or rings == APRON_RINGS:
+					var flare := clampf((1.42 - y) / 1.16, 0.0, 1.0)
+					rx *= 1.0 + .42 * flare
+					rz *= 1.0 + .36 * flare
 				vertices.append(Vector3(sin(angle) * rx, y, cos(angle) * rz))
 				arm_weights.append(0.0)
 		for row in rows:
@@ -421,17 +426,23 @@ static func sash_knot() -> Dictionary:
 	return Mosuo._finish(vertices, indices, arm_weights, "bottom")
 
 
+const WOVEN_TAILS = preload("res://assets/collections/ukrainian_photo_001/woven_sash_tails.json")
+
 static func sash_tail(side: float) -> Dictionary:
-	var controls := PackedVector3Array([
-		Vector3(side * .128, 1.400, .262), Vector3(side * .145, 1.240, .272),
-		Vector3(side * .163, 1.160, .292), Vector3(side * .178, 1.035, .318)])
+	var source: Dictionary = WOVEN_TAILS.data["L" if side < 0 else "R"]
 	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
-	var arm_weights := PackedFloat32Array()
-	Mosuo._ribbon(controls, .047, .003, vertices, indices, arm_weights)
-	return Mosuo._finish(vertices, indices, arm_weights, "bottom")
+	var colors := PackedColorArray()
+	for p in source.vertices:
+		vertices.append(Vector3(p[0], p[1], p[2]))
+	for c in source.colors:
+		colors.append(Color(c[0], c[1], c[2]))
+	var weights := PackedFloat32Array()
+	weights.resize(vertices.size())
+	var data := Mosuo._finish(vertices, PackedInt32Array(source.indices), weights, "bottom")
+	data["colors"] = colors
+	return data
 
 
 static func sash_tassels(side: float) -> Dictionary:
 	# Yarn-pompon tassels from the parametric motif, one geometry per color.
-	return tassel_asset().build(Vector3(side * .178, 1.035, .318))
+	return tassel_asset().build(Vector3(side * .178, 1.035, .348))

@@ -344,15 +344,10 @@ func _build_volume_head() -> void:
 	hair_root = Node3D.new()
 	hair_root.name = "HairSlot"
 	head_rig.add_child(hair_root)
-	_hair_cap(hair)
+	if hair_style != 3: _hair_cap(hair)
 	match hair_style if not reference_costume else -1:
 		3:
-			for side in [-1.0, 1.0]:
-				for lock in 4:
-					var wave := _ellipsoid(hair_root, "BobWave", Vector3(side * (.244 - .009 * lock), .20 - .030 * lock, .036 - .063 * lock), Vector3(.079, .148, .078), hair)
-					wave.rotation.z = side * (.19 - lock * .12)
-				var fringe := PackedVector3Array([Vector3(side * .025, .56, .13), Vector3(side * .13, .48, .255), Vector3(side * .235, .32, .19)])
-				_tube(hair_root, "SidePartWave", fringe, .036, hair.lightened(.03))
+			preload("res://scripts/ukrainian_blender_mesh.gd").hair(hair_root)
 		0:
 			for side in [-1.0, 1.0]:
 				var bun := _ellipsoid(hair_root, "LowBun", Vector3(side * 0.268, 0.075, -0.13), Vector3(0.116, 0.13, 0.126), hair)
