@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ParametricFlower" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://components/parametric_flower.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+radius = 0.145
+cup_depth = 0.085
+layers = 5
+petals_per_layer = 8
+petal_color = Color(0.91, 0.08, 0.17, 1)

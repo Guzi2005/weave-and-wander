@@ -1,0 +1,29 @@
+{
+  "id": "mosuo_photo_001",
+  "name": "摩梭·照片001套装",
+  "wiki_record_id": "WW-MOS-001",
+  "stage": "photo_derived_game_study",
+  "culture_attribution": {
+    "label": "摩梭",
+    "basis": "user_provided",
+    "status": "pending_research"
+  },
+  "source_image": "res://Docs/wiki-concept-2026-10-28/mosuo-example/source-user-upload.png",
+  "source_sha256": "e64df3d2db963e9de8e7868502baff1a42c4efb3574e438ed2b67bba5b6eaa1b",
+  "date": null,
+  "place": null,
+  "members": [
+    {"design_id": "mosuo_headwear_001", "style": 14, "slot": "headwear", "wiki_record_id": "WW-MOS-001-C01", "includes": ["headwear", "purple_seed_bead_strands"]},
+    {"design_id": "mosuo_top_001", "style": 15, "slot": "top", "wiki_record_id": "WW-MOS-001-C02"},
+    {"design_id": "mosuo_skirt_001", "style": 16, "slot": "bottom", "wiki_record_id": "WW-MOS-001-C03"}
+  ],
+  "compatible_base": {"design_id": "basic_shoes", "wiki_record_id": "WW-GEN-001", "culture_attribution": null, "is_collection_member": false},
+  "related_objects": [{"design_id":"mosuo_insole_001","wiki_record_id":"WW-MOS-001-P01","slot":"handcraft","basis":"user_identified_magenta_edged_insole","is_core_garment":false}],
+  "structural_reference": {"source_id":"V-MOS-002","title":"什么是真正的摩梭？","publisher":"时差岛","same_outfit":false,"timecodes":["02:06–02:14","04:51"]},
+  "notes": [
+    "紫色米珠串是头饰延续，与头饰共同存储、陈列、穿戴；依据用户补充说明。",
+    "上衣包含宽腰带。领型的蒙古袍／旗袍比较仅为制作参照，不作为文化来源归属。",
+    "几何与纹样为游戏研究转译；背面及被遮挡结构未获原图验证。",
+    "价格字段为游戏经济参数，无文物估值含义。"
+  ]
+}

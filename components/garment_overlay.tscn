@@ -1,0 +1,17 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://components/garment_overlay.gd" id="1"]
+[ext_resource type="Shader" path="res://shaders/doll_volume.gdshader" id="2"]
+
+[sub_resource type="ShaderMaterial" id="Cloth"]
+shader = ExtResource("2")
+shader_parameter/pigment = Color(0.50, 0.45, 0.60, 1)
+
+[sub_resource type="ShaderMaterial" id="Trim"]
+shader = ExtResource("2")
+shader_parameter/pigment = Color(0.67, 0.43, 0.46, 1)
+
+[node name="FittedWaistcoat" type="MeshInstance3D"]
+material_override = SubResource("Cloth")
+script = ExtResource("1")
+border_material = SubResource("Trim")

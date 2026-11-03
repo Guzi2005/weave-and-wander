@@ -1,0 +1,54 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://components/pleated_skirt.gd" id="1_skirt"]
+
+[sub_resource type="Environment" id="Environment_neutral"]
+background_mode = 1
+background_color = Color(0.34902, 0.419608, 0.392157, 1)
+ambient_light_source = 2
+ambient_light_color = Color(1, 0.972549, 0.917647, 1)
+ambient_light_energy = 0.28
+tonemap_mode = 0
+
+[sub_resource type="StandardMaterial3D" id="Material_floor"]
+albedo_color = Color(0.34902, 0.419608, 0.392157, 1)
+roughness = 0.96
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+material = SubResource("Material_floor")
+size = Vector2(4, 4)
+
+[node name="PleatedSkirtPreview" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_neutral")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+position = Vector3(0, 2.4, 0)
+rotation_degrees = Vector3(-52, -32, 0)
+light_color = Color(1, 0.956863, 0.886275, 1)
+light_energy = 0.7
+shadow_enabled = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+position = Vector3(0, 1.5, 0)
+rotation_degrees = Vector3(-18, 145, 0)
+light_color = Color(0.760784, 0.823529, 0.909804, 1)
+light_energy = 0.12
+shadow_enabled = false
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.001, 0)
+mesh = SubResource("PlaneMesh_floor")
+
+[node name="Skirt" type="Node3D" parent="."]
+script = ExtResource("1_skirt")
+default_template_id = "mosuo_reference"
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(1.15, 0.78, 1.55)
+rotation_degrees = Vector3(-12, 34, 0)
+current = true
+fov = 35.0
+near = 0.02
+far = 20.0

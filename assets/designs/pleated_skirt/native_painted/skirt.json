@@ -1,0 +1,92 @@
+{
+  "schema": "weave-pleated-skirt",
+  "version": 1,
+  "design_id": "56005123-2627-4607-b13b-b1e682d5715c",
+  "item_id": "6c11ca41-f171-45f8-b82f-f274d0cb640e",
+  "component_id": "13d0dce0-746d-426d-9f81-68f625062259",
+  "collection_id": "pleated-skirt-study",
+  "template_id": "mosuo_reference",
+  "canvas_view": "ring",
+  "source": {
+    "note": "依据用户提供的服饰照片建立的可编辑设计起点；具体地域与工艺以来源为准。",
+    "references": [
+      {
+        "title": "当代摩梭母女-1 — 摄影者朱晓安",
+        "path": "D:/Eagle库/纯纯素材仓库.library/images/MVL2PCZVKPFCJ.info/当代摩梭母女-1 - 摄影者朱晓安.jpg"
+      }
+    ]
+  },
+  "parameters": {
+    "length_cm": 88,
+    "waist_cm": 68,
+    "hem_cm": 230,
+    "pleat_count": 64,
+    "pleat_depth_cm": 1.4,
+    "sharpness": 0.82,
+    "thickness_mm": 0.7,
+    "fabric": "cotton",
+    "base_color": "#ede8db"
+  },
+  "bands": [
+    {
+      "id": "4cd72588-3531-48d0-9f0d-cb38212c32ba",
+      "color": "#c74674",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.79,
+      "end": 0.8
+    }
+  ],
+  "patches": [],
+  "strokes": [
+    {
+      "id": "77ae391e-b30c-45fc-9021-db4bcb219bfd",
+      "color": "#c54d70",
+      "width": 0.009,
+      "points": [
+        [
+          0.43039552535640047,
+          0.3564147357836326
+        ],
+        [
+          0.4485543710228529,
+          0.3646354640530147
+        ],
+        [
+          0.4662640835403753,
+          0.3752453573400951
+        ],
+        [
+          0.48343630483737793,
+          0.3881462514057249
+        ],
+        [
+          0.5,
+          0.4032257118509639
+        ],
+        [
+          0.5159022747678174,
+          0.4203622651140627
+        ],
+        [
+          0.5311074834156548,
+          0.43942769346075633
+        ],
+        [
+          0.5455956103777183,
+          0.46029147858635383
+        ],
+        [
+          0.5593606071963811,
+          0.4828248703026951
+        ]
+      ]
+    }
+  ],
+  "pattern_uv": {
+    "origin": "waist",
+    "seam": "back",
+    "u": "circumference",
+    "v": "waist_to_hem"
+  }
+}

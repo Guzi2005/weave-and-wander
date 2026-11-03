@@ -1,0 +1,80 @@
+{
+  "schema": "weave-pleated-skirt",
+  "version": 1,
+  "design_id": "360efb89-c7d6-4813-849a-a2bddde446b0",
+  "item_id": "d9157946-ffa3-46b0-b489-4ed73fec4116",
+  "component_id": "8b5c9b11-df9b-4541-adac-7c63c31f5511",
+  "collection_id": "pleated-skirt-study",
+  "template_id": "yi_reference",
+  "canvas_view": "sector",
+  "source": {
+    "note": "依据用户提供的服饰照片建立的可编辑设计起点；具体地域与工艺以来源为准。",
+    "references": [
+      {
+        "title": "收到了越西老板寄来的彝族裙子 — baby blue",
+        "path": "D:/Eagle库/纯纯素材仓库.library/images/MVL2IMSGPE1ZL.info/收到了越西老板寄来的彝族裙子 - baby blue.jpg"
+      }
+    ]
+  },
+  "parameters": {
+    "length_cm": 88,
+    "waist_cm": 68,
+    "hem_cm": 290,
+    "pleat_count": 96,
+    "pleat_depth_cm": 1.4,
+    "sharpness": 0.96,
+    "thickness_mm": 0.7,
+    "fabric": "cotton",
+    "base_color": "#202135"
+  },
+  "bands": [
+    {
+      "id": "1d0c16a0-63b9-436d-9b32-fb3f2cef6e7a",
+      "color": "#765178",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.42,
+      "end": 0.72
+    },
+    {
+      "id": "6a4c4c04-62dc-47b2-9a2c-0d6aa41bf28e",
+      "color": "#34b6cc",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.72,
+      "end": 0.745
+    },
+    {
+      "id": "80401f1a-5d8e-4e37-8229-03692f352630",
+      "color": "#e6ddd5",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.75,
+      "end": 0.76
+    },
+    {
+      "id": "b6ac7478-8484-499f-833b-c25f2b1b9b8e",
+      "color": "#d84b69",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.77,
+      "end": 0.78
+    },
+    {
+      "id": "7a09977b-7eff-442c-a209-eafd209d1390",
+      "color": "#e9ded4",
+      "pattern": "dash",
+      "repeat": 48,
+      "start": 0.785,
+      "end": 0.81
+    }
+  ],
+  "patches": [],
+  "strokes": [],
+  "pattern_uv": {
+    "origin": "waist",
+    "seam": "back",
+    "u": "circumference",
+    "v": "waist_to_hem"
+  }
+}

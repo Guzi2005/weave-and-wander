@@ -1,0 +1,360 @@
+[
+  {
+	"files": [
+	  {
+		"file": "textures/black_walnut_veneer_02_diff_2k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/black_walnut_veneer_02/black_walnut_veneer_02_diff_2k.jpg",
+		"md5": "e4ef13d171747d6c877bec563b67d389"
+	  },
+	  {
+		"file": "textures/black_walnut_veneer_02_nor_gl_2k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/black_walnut_veneer_02/black_walnut_veneer_02_nor_gl_2k.jpg",
+		"md5": "f2af23ce4886edcef6b1e7226183d445"
+	  },
+	  {
+		"file": "textures/black_walnut_veneer_02_rough_2k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/black_walnut_veneer_02/black_walnut_veneer_02_rough_2k.jpg",
+		"md5": "c1c2f3bfc6942b516499500c60200a9a"
+	  }
+	],
+	"id": "black_walnut_veneer_02",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/black_walnut_veneer_02",
+	"name": "Black Walnut Veneer 02",
+	"authors": {
+	  "Jenelle van Heerden": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "textures/rough_linen_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_diff_1k.jpg",
+		"md5": "663db789fb075462b685c1f740e58930"
+	  },
+	  {
+		"file": "textures/rough_linen_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_nor_gl_1k.jpg",
+		"md5": "3350269a2e9c472aa406bd3cc1eaf2c8"
+	  },
+	  {
+		"file": "textures/rough_linen_rough_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_rough_1k.jpg",
+		"md5": "a380b24cc43cff88c39510305ebf0020"
+	  }
+	],
+	"id": "rough_linen",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/rough_linen",
+	"name": "Rough Linen",
+	"authors": {
+	  "colormass": "Photography",
+	  "Rico Cilliers": "Processing"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "textures/white_plaster_02_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_diff_1k.jpg",
+		"md5": "7b10c2686bcfd76d1f309a20fd06b57e"
+	  },
+	  {
+		"file": "textures/white_plaster_02_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+		"md5": "55fc03203ebf1dc703a380fde93ff502"
+	  },
+	  {
+		"file": "textures/white_plaster_02_rough_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_rough_1k.jpg",
+		"md5": "8b28f263360b8c4ddbdc4f7c650c4eeb"
+	  }
+	],
+	"id": "white_plaster_02",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/white_plaster_02",
+	"name": "White Plaster 02",
+	"authors": {
+	  "Rob Tuytel": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "potted_plant_02/potted_plant_02_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_02/potted_plant_02_1k.gltf",
+		"md5": "9999d7e6c51018a85551840e1bdae656"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_leaves_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_leaves_diff_1k.jpg",
+		"md5": "e8a026bd7bfa6497729d855c59da03ce"
+	  },
+	  {
+		"file": "potted_plant_02/potted_plant_02.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/potted_plant_02/potted_plant_02.bin",
+		"md5": "cdbd4619b2596c9c469ad34676085fa8"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_pot_rough_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_pot_rough_1k.jpg",
+		"md5": "68ed80fa32791fb0e81df61a75de40b4"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_leaves_rough_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_leaves_rough_1k.jpg",
+		"md5": "ba934a78cc6496d934c014eb8a33af37"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_pot_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_pot_diff_1k.jpg",
+		"md5": "97e149c93eb0d962e491d4c82d3ce477"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_leaves_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_leaves_nor_gl_1k.jpg",
+		"md5": "2420d5c0ab87426f5318a5e91d1ea3bb"
+	  },
+	  {
+		"file": "potted_plant_02/textures/potted_plant_02_pot_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_02/potted_plant_02_pot_nor_gl_1k.jpg",
+		"md5": "fbb44ccc1c6564b2837b79a11ed45d58"
+	  }
+	],
+	"id": "potted_plant_02",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/potted_plant_02",
+	"name": "Potted Plant 02",
+	"authors": {
+	  "Rico Cilliers": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "desk_lamp_arm_01/desk_lamp_arm_01_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/desk_lamp_arm_01/desk_lamp_arm_01_1k.gltf",
+		"md5": "29b204485d30e66ee3f183ef45bf4bb3"
+	  },
+	  {
+		"file": "desk_lamp_arm_01/textures/desk_lamp_arm_01_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_nor_gl_1k.jpg",
+		"md5": "5aabbfe920ea6726d5299be7d6224551"
+	  },
+	  {
+		"file": "desk_lamp_arm_01/textures/desk_lamp_arm_01_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_arm_1k.jpg",
+		"md5": "0b887af80f561216baa3da94d001d51a"
+	  },
+	  {
+		"file": "desk_lamp_arm_01/textures/desk_lamp_arm_01_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_diff_1k.jpg",
+		"md5": "a5c1bf5465da39ca6ca9039dd4e3fd66"
+	  },
+	  {
+		"file": "desk_lamp_arm_01/desk_lamp_arm_01.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/desk_lamp_arm_01/desk_lamp_arm_01.bin",
+		"md5": "29ffa5bb6bee35b066e46073124fee1a"
+	  }
+	],
+	"id": "desk_lamp_arm_01",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/desk_lamp_arm_01",
+	"name": "Desk Lamp Arm 01",
+	"authors": {
+	  "Yann Kervran": "Rigging",
+	  "Kuutti Siitonen": "Modeling & texturing"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "wicker_basket_02/wicker_basket_02_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wicker_basket_02/wicker_basket_02_1k.gltf",
+		"md5": "aed62a99730dec42ef32e51c36187f37"
+	  },
+	  {
+		"file": "wicker_basket_02/textures/wicker_basket_02_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wicker_basket_02/wicker_basket_02_nor_gl_1k.jpg",
+		"md5": "502447f7dc5687b386f8c417c31feb07"
+	  },
+	  {
+		"file": "wicker_basket_02/wicker_basket_02.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/wicker_basket_02/wicker_basket_02.bin",
+		"md5": "32a855c75791b16826530611f9199e82"
+	  },
+	  {
+		"file": "wicker_basket_02/textures/wicker_basket_02_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wicker_basket_02/wicker_basket_02_arm_1k.jpg",
+		"md5": "2967de2f99b85ee52d6bab63978c003a"
+	  },
+	  {
+		"file": "wicker_basket_02/textures/wicker_basket_02_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wicker_basket_02/wicker_basket_02_diff_1k.jpg",
+		"md5": "61471823114f02ca04197e7e2af13e8f"
+	  }
+	],
+	"id": "wicker_basket_02",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/wicker_basket_02",
+	"name": "Wicker Basket 02",
+	"authors": {
+	  "Kuutti Siitonen": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "book_encyclopedia_set_01/book_encyclopedia_set_01_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_1k.gltf",
+		"md5": "d0a77d421a6ea2c9d82bcaaa64e8479b"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_cover_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_cover_diff_1k.jpg",
+		"md5": "00a10b1b5a28efa4670d68a089a64ef3"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/book_encyclopedia_set_01.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/book_encyclopedia_set_01/book_encyclopedia_set_01.bin",
+		"md5": "ac617be6503e537c5d1a16a94313e866"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_paper_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_paper_nor_gl_1k.jpg",
+		"md5": "816a51a0b6520cf5e08751089722fc46"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_cover_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_cover_arm_1k.jpg",
+		"md5": "0e5788b0ee9ce810823356e187c31a8c"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_cover_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_cover_nor_gl_1k.jpg",
+		"md5": "488fa9696ad4f1773a2d81f3af7b6c76"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_paper_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_paper_diff_1k.jpg",
+		"md5": "7798b8e38721a4fc1ed45319ecc81b67"
+	  },
+	  {
+		"file": "book_encyclopedia_set_01/textures/book_encyclopedia_set_01_paper_roughness_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/book_encyclopedia_set_01/book_encyclopedia_set_01_paper_roughness_1k.jpg",
+		"md5": "b8e5b8431b0c53b20d83ec0bcff51747"
+	  }
+	],
+	"id": "book_encyclopedia_set_01",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/book_encyclopedia_set_01",
+	"name": "Book Encyclopedia Set 01",
+	"authors": {
+	  "John Malcolm": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "jacaranda_tree/jacaranda_tree_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/jacaranda_tree/jacaranda_tree_1k.gltf",
+		"md5": "8fed93ff7cbdaac0f5c199ef1fd0f694"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_branches_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_nor_gl_1k.jpg",
+		"md5": "789084affb01f4a22290a848558f5e12"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_branches_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_diff_1k.jpg",
+		"md5": "e5bacbfd3e7ce397bdd34b0bac6669ca"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_branches_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_branches_arm_1k.jpg",
+		"md5": "5b6f5b3838f4a8f60fea14fa3a3fef9f"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_trunk_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_nor_gl_1k.jpg",
+		"md5": "af34d3a054b498f153e4793f7520a630"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_trunk_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_diff_1k.jpg",
+		"md5": "c3edc2e76157023e7a5c35cd13867498"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_trunk_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_trunk_arm_1k.jpg",
+		"md5": "7232b4514e9412725a6a8e65a69f4ed4"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_leaves_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_nor_gl_1k.jpg",
+		"md5": "7cbd82c0dd4b8c8a4ab314338f50404d"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_leaves_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_diff_1k.jpg",
+		"md5": "8ae91737f39567629768a255817d80be"
+	  },
+	  {
+		"file": "jacaranda_tree/textures/jacaranda_tree_leaves_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/jacaranda_tree/jacaranda_tree_leaves_arm_1k.jpg",
+		"md5": "fabee050680fd173032acf003ef61191"
+	  },
+	  {
+		"file": "jacaranda_tree/jacaranda_tree.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/jacaranda_tree/jacaranda_tree.bin",
+		"md5": "ae25eacd5e67ea2e9bbbaa2854b6ed99"
+	  }
+	],
+	"id": "jacaranda_tree",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/jacaranda_tree",
+	"name": "Jacaranda Tree",
+	"authors": {
+	  "Rob Tuytel": "guidance",
+	  "Rico Cilliers": "All"
+	}
+  },
+  {
+	"files": [
+	  {
+		"file": "fern_02/fern_02_1k.gltf",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/fern_02/fern_02_1k.gltf",
+		"md5": "cf276874d37bfb73c299504a6b355b77"
+	  },
+	  {
+		"file": "fern_02/textures/fern_02_arm_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/fern_02/fern_02_arm_1k.jpg",
+		"md5": "1bbb2b22951f450720d28e17d93a2987"
+	  },
+	  {
+		"file": "fern_02/textures/fern_02_diff_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/fern_02/fern_02_diff_1k.jpg",
+		"md5": "82c18a6cfd5ae91c37c0e078f591181c"
+	  },
+	  {
+		"file": "fern_02/textures/fern_02_nor_gl_1k.jpg",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/fern_02/fern_02_nor_gl_1k.jpg",
+		"md5": "43aed63dff79554f6064627515afd9d7"
+	  },
+	  {
+		"file": "fern_02/fern_02.bin",
+		"url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/fern_02/fern_02.bin",
+		"md5": "c061e9255f7d36ae9ce0e92ef3e100b2"
+	  }
+	],
+	"id": "fern_02",
+	"license": "CC0-1.0",
+	"source": "https://polyhaven.com/a/fern_02",
+	"name": "Fern 02",
+	"authors": {
+	  "Rob Tuytel": "scanning",
+	  "Rico Cilliers": "modeling"
+	}
+  }
+]

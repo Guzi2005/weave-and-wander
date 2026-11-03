@@ -1,0 +1,56 @@
+{
+  "schema": "weave-pleated-skirt",
+  "version": "1",
+  "design_id": "ukrainian_photo_001_overskirt",
+  "item_id": "ukrainian_photo_001",
+  "component_id": "overskirt",
+  "collection_id": "ukrainian_photo_001",
+  "template_id": "plain",
+  "canvas_view": "front",
+  "source": {
+    "note": "Game-scale adaptation of the user-supplied Ukrainian reference photo. Dark overskirt with yellow/purple/green warp stripes. Dimensions are model metres converted to cm for the doll body (waist/hem exceed the human-scale editor ranges on purpose); waist is high at y=1.44 m, hem at y=0.26 m so the white underskirt shows below.",
+    "references": [
+      {"title": "Ukrainian girl in Ukrainian traditional clothing (user upload)", "path": "assets/collections/ukrainian_photo_001/source.jpg"}
+    ]
+  },
+  "parameters": {
+    "length_cm": 118.0,
+    "waist_cm": 174.0,
+    "hem_cm": 252.0,
+    "pleat_count": 40,
+    "pleat_depth_cm": 1.8,
+    "sharpness": 0.75,
+    "thickness_mm": 1.2,
+    "fabric": "wool",
+    "base_color": "#1f3a3c"
+  },
+  "bands": [],
+  "patches": [
+    {"id": "stripe-y0", "u0": 0.005, "u1": 0.018, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g0", "u0": 0.022, "u1": 0.040, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p0", "u0": 0.044, "u1": 0.054, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y1", "u0": 0.130, "u1": 0.143, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g1", "u0": 0.147, "u1": 0.165, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p1", "u0": 0.169, "u1": 0.179, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y2", "u0": 0.255, "u1": 0.268, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g2", "u0": 0.272, "u1": 0.290, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p2", "u0": 0.294, "u1": 0.304, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y3", "u0": 0.380, "u1": 0.393, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g3", "u0": 0.397, "u1": 0.415, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p3", "u0": 0.419, "u1": 0.429, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y4", "u0": 0.505, "u1": 0.518, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g4", "u0": 0.522, "u1": 0.540, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p4", "u0": 0.544, "u1": 0.554, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y5", "u0": 0.630, "u1": 0.643, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g5", "u0": 0.647, "u1": 0.665, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p5", "u0": 0.669, "u1": 0.679, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y6", "u0": 0.755, "u1": 0.768, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g6", "u0": 0.772, "u1": 0.790, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p6", "u0": 0.794, "u1": 0.804, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-y7", "u0": 0.880, "u1": 0.893, "v0": 0.0, "v1": 1.0, "color": "#c8a23a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-g7", "u0": 0.897, "u1": 0.915, "v0": 0.0, "v1": 1.0, "color": "#4a7a4a", "pattern": "solid", "repeat": 8},
+    {"id": "stripe-p7", "u0": 0.919, "u1": 0.929, "v0": 0.0, "v1": 1.0, "color": "#6e4a86", "pattern": "solid", "repeat": 8}
+  ],
+  "strokes": [],
+  "pattern_uv": {"origin": "waist", "seam": "back", "u": "circumference", "v": "waist_to_hem"}
+}

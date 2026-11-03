@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://components/garment_template.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://components/garment_overlay.tscn" id="2"]
+
+[node name="WaistcoatTemplate" instance=ExtResource("1")]
+
+[node name="Waistcoat" parent="." instance=ExtResource("2")]
+mount_surface = NodePath("../Shell")

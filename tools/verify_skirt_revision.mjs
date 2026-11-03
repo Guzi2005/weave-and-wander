@@ -1,0 +1,18 @@
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import {mkdir,writeFile} from 'node:fs/promises';
+const require=createRequire('D:/GodotProjects/weave-and-wander/asset-workbench/package.json');const {chromium,expect}=require('@playwright/test');
+const output=new URL('../captures/skirt_revision/',import.meta.url);await mkdir(output,{recursive:true});
+const browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-unsafe-swiftshader']});const page=await browser.newPage({viewport:{width:1600,height:1050}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto('http://127.0.0.1:3119/');await page.getByRole('button',{name:'工作模式：剪贴画板',exact:true}).click();await page.getByRole('menuitemradio',{name:'Weave & Wander 资产',exact:true}).click();await page.getByRole('button',{name:/参数化百褶裙/}).click();
+ await expect(page.getByTestId('skirt-preview')).toHaveAttribute('data-avatar','ready',{timeout:30000});await expect(page.locator('.skirt-native-status')).toHaveText('已同步');
+ await page.getByRole('tab',{name:'梯形平铺',exact:true}).click();await expect(page.locator('.skirt-native-status')).toHaveText('已同步');await page.screenshot({path:fileURLToPath(new URL('flat.png',output))});
+ const snapshot=async()=>{const wait=page.waitForEvent('download');await page.getByRole('button',{name:'保存完整原稿',exact:true}).click();const dl=await wait;const path=fileURLToPath(new URL('design.weave.json',output));await dl.saveAs(path);const {readFile}=await import('node:fs/promises');return JSON.parse(await readFile(path,'utf8')).project;};
+ await page.getByRole('button',{name:'画笔',exact:true}).click();const box=await page.getByTestId('skirt-canvas').boundingBox();await page.mouse.move(box.x+box.width*.45,box.y+box.height*.45);await page.mouse.down();await page.mouse.move(box.x+box.width*.55,box.y+box.height*.55,{steps:5});await page.mouse.up();await expect(page.locator('.skirt-native-status')).toHaveText('已同步');const mirrored=await snapshot();expect(mirrored.pleatedSkirt.strokes.length).toBeGreaterThanOrEqual(2);await page.screenshot({path:fileURLToPath(new URL('mirrored.png',output))});
+ await page.getByRole('spinbutton',{name:'下垂重量 数值',exact:true}).fill('.8');await page.getByRole('spinbutton',{name:'下垂重量 数值',exact:true}).press('Tab');await expect(page.locator('.skirt-native-status')).toHaveText('已同步');expect((await snapshot()).pleatedSkirt.drape.weight).toBe(.8);
+ for(const [action,name] of [['sit','坐下'],['lie','躺下']]){await page.getByRole('button',{name,exact:true}).click();await page.getByRole('slider',{name:'动作进度',exact:true}).evaluate(el=>{el.value='1';el.dispatchEvent(new Event('input',{bubbles:true}));});await expect(page.getByTestId('skirt-preview')).toHaveAttribute('data-bench','true',{timeout:30000});expect(Number(await page.getByTestId('skirt-preview').getAttribute('data-warp-error'))).toBeLessThan(.0001);await page.screenshot({path:fileURLToPath(new URL(action+'.png',output))});}
+ await page.getByRole('tab',{name:'圆弧展开',exact:true}).click();await expect(page.locator('.skirt-native-status')).toHaveText('已同步');await page.screenshot({path:fileURLToPath(new URL('sector.png',output))});
+ await page.getByRole('tab',{name:'圆环俯视',exact:true}).click();await expect(page.locator('.skirt-native-status')).toHaveText('已同步');await page.screenshot({path:fileURLToPath(new URL('ring.png',output))});
+ const design=(await snapshot()).pleatedSkirt;await writeFile(new URL('drape.json',output),JSON.stringify(design));expect(errors).toEqual([]);console.log(JSON.stringify({passed:true,errors}));
+}finally{await browser.close();}

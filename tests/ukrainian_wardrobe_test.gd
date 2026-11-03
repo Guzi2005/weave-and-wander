@@ -1,0 +1,15 @@
+extends SceneTree
+func _initialize(): run.call_deferred()
+func run():
+	var doll = preload("res://scripts/volume_doll.gd").new()
+	root.add_child(doll)
+	doll.configure({"outfit": 1})
+	doll.wear_ukrainian_set()
+	assert(doll.body_rig.find_children("UkrShirt", "MeshInstance3D", true, false).size() == 1)
+	assert(doll.hair_style == 3 and doll.shoe_style == 1)
+	doll.set_hair_style(1)
+	assert(doll.body_rig.find_children("UkrShirt", "MeshInstance3D", true, false).size() == 1)
+	doll.set_outfit_style(0)
+	assert(doll.body_rig.find_children("UkrShirt", "MeshInstance3D", true, false).is_empty())
+	print("UKRAINIAN_WARDROBE_PASS")
+	quit()

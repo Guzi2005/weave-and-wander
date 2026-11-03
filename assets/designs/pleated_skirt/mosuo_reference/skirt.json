@@ -1,0 +1,48 @@
+{
+  "schema": "weave-pleated-skirt",
+  "version": 1,
+  "design_id": "360efb89-c7d6-4813-849a-a2bddde446b0",
+  "item_id": "d9157946-ffa3-46b0-b489-4ed73fec4116",
+  "component_id": "8b5c9b11-df9b-4541-adac-7c63c31f5511",
+  "collection_id": "pleated-skirt-study",
+  "template_id": "mosuo_reference",
+  "canvas_view": "sector",
+  "source": {
+    "note": "依据用户提供的服饰照片建立的可编辑设计起点；具体地域与工艺以来源为准。",
+    "references": [
+      {
+        "title": "当代摩梭母女-1 — 摄影者朱晓安",
+        "path": "D:/Eagle库/纯纯素材仓库.library/images/MVL2PCZVKPFCJ.info/当代摩梭母女-1 - 摄影者朱晓安.jpg"
+      }
+    ]
+  },
+  "parameters": {
+    "length_cm": 88,
+    "waist_cm": 68,
+    "hem_cm": 230,
+    "pleat_count": 64,
+    "pleat_depth_cm": 1.4,
+    "sharpness": 0.82,
+    "thickness_mm": 0.7,
+    "fabric": "cotton",
+    "base_color": "#ede8db"
+  },
+  "bands": [
+    {
+      "id": "fa070b89-4b04-4b02-9a71-8f3e796dd563",
+      "color": "#c74674",
+      "pattern": "solid",
+      "repeat": 32,
+      "start": 0.79,
+      "end": 0.8
+    }
+  ],
+  "patches": [],
+  "strokes": [],
+  "pattern_uv": {
+    "origin": "waist",
+    "seam": "back",
+    "u": "circumference",
+    "v": "waist_to_hem"
+  }
+}

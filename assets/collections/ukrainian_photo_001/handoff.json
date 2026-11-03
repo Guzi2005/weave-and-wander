@@ -1,0 +1,38 @@
+{
+  "schema": "ww-ai-handoff-v1",
+  "updated_at": "2026-11-02",
+  "workspace": "D:/GodotProjects/weave-and-wander",
+  "project_root": "prototypes/dollhouse-3d",
+  "guide": "Docs/AI_HANDOFF.md",
+  "ensemble_record_id": "WW-UKR-001",
+  "body_policy": "unchanged_shared_volume_doll",
+  "waist": { "sash_center_y_m": 1.42, "overskirt_y_m": 1.44 },
+  "skirt_contract": "Docs/PLEATED_SKIRT_CONTRACT.md",
+  "source_image": "assets/collections/ukrainian_photo_001/source.jpg",
+  "components": [
+    { "record_id": "WW-UKR-001", "model": "ukrainian_ensemble" },
+    { "record_id": "WW-UKR-001-C01", "model": "ukrainian_undershirt_001" },
+    { "record_id": "WW-UKR-001-C02", "model": "ukrainian_overskirt_001" },
+    { "record_id": "WW-UKR-001-C03", "model": "ukrainian_apron_001" },
+    { "record_id": "WW-UKR-001-C04", "model": "ukrainian_sash_001" },
+    { "record_id": "WW-UKR-001-C05", "model": "ukrainian_beads_001" }
+  ],
+  "model_directory": "tools/ww-wiki/public/assets/models",
+  "motifs": [
+    { "record_id": "WW-UKR-001-M01", "id": "stripe-overskirt", "recipe": "stripe_overskirt.tres", "wiki_recipe": "tools/ww-wiki/public/assets/motifs/stripe-overskirt.tres" },
+    { "record_id": "WW-UKR-001-M02", "id": "tassel-sash", "recipe": "tassel_sash.tres", "wiki_recipe": "tools/ww-wiki/public/assets/motifs/tassel-sash.tres" }
+  ],
+  "wiki": {
+    "root": "tools/ww-wiki",
+    "runtime_records": "tools/ww-wiki/data/records.json",
+    "runtime_data_policy": "api_idempotent_patch_only",
+    "motif_route": "#/motifs",
+    "dev_command": "npm run dev -- --host 127.0.0.1 --port 4318"
+  },
+  "validation": {
+    "glb_roundtrip": "passed",
+    "node_tests_passed": 69,
+    "model_screenshots_reviewed": true,
+    "browser_interaction_visual_acceptance": "not_performed"
+  }
+}
