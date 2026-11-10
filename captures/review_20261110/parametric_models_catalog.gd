@@ -3073,7 +3073,7 @@ static func _tuck_hair_under_hat(target_head: Node3D, pivot: Node3D, inner_rx: f
 			mi.mesh = new_mesh
 
 
-# #16 彝族解放帽（图1左款：本质为桶型鸭舌帽 — 支持桶高 barrel_height、桶宽 barrel_width、帽舌长度 visor_length、吸附佩戴角度 wear_angle 参数调节）
+# #16 彝族解放帽（图1左款：高筒黑色硬挺圆筒帽身 + 平帽顶 + 前伸弧形硬质鸭舌帽檐 + 下圈结构性帽箍；不含红色装饰带，筒高上限提升3倍）
 # Can be mounted onto HeadRig (or standalone preview node)
 static func build_hat_16_yi_liberation_cap(parent: Node3D, params: Dictionary = {}) -> Node3D:
 	var target_head := _resolve_head_rig(parent)
@@ -3085,121 +3085,179 @@ static func build_hat_16_yi_liberation_cap(parent: Node3D, params: Dictionary = 
 	hat_root.name = "CustomHat"
 	target_head.add_child(hat_root)
 
-	var crown_color: Color = params.get("color", Color(0.13, 0.16, 0.22)) # Deep indigo-charcoal cloth
-	var visor_color: Color = params.get("visor_color", Color(0.09, 0.11, 0.15))
-	var piping_color: Color = params.get("piping_color", Color(0.72, 0.18, 0.18)) # Subtle thin red side seam piping
+	var crown_color: Color = params.get("color", Color(0.12, 0.14, 0.18)) # Deep black-charcoal cloth
+	var visor_color: Color = params.get("visor_color", Color(0.08, 0.09, 0.12))
 
-	# 4 Core Adjustable Parameters requested by user:
-	# 1. 桶高 (barrel_height / crown_height)
-	var barrel_height: float = clampf(float(params.get("barrel_height", params.get("crown_height", 0.24))), 0.16, 0.36)
-	# 2. 桶宽 (barrel_width / crown_radius)
-	var barrel_width: float = clampf(float(params.get("barrel_width", params.get("crown_radius", 0.292))), 0.276, 0.345)
+	# 核心参数：
+	# 1. 筒高 (barrel_height / crown_height) — 上限提升3倍至 1.05+，默认 0.38 还原图1左款挺拔高筒
+	var barrel_height: float = clampf(float(params.get("barrel_height", params.get("crown_height", 0.38))), 0.08, 1.05)
+	# 2. 筒宽/半径 (barrel_width / cap_radius / crown_radius)
+	var barrel_width: float = clampf(float(params.get("barrel_width", params.get("cap_radius", params.get("crown_radius", 0.302)))), 0.25, 0.42)
 	# 3. 帽舌长度 (visor_length)
-	var visor_length: float = clampf(float(params.get("visor_length", 0.155)), 0.08, 0.24)
-	# 4. 吸附佩戴角度 (wear_angle / mount_angle / tilt_back):
-	#    Controls the angle along the skull crown surface ellipse where the bucket cap adheres/snaps onto the head!
-	var raw_angle: float = float(params.get("wear_angle", params.get("mount_angle", params.get("tilt_back", 22.0))))
+	var visor_length: float = clampf(float(params.get("visor_length", 0.135)), 0.05, 0.26)
+	# 4. 佩戴倾角 (wear_angle / mount_angle / tilt_back)
+	var raw_angle: float = float(params.get("wear_angle", params.get("mount_angle", params.get("tilt_back", 16.0))))
 	var wear_rad: float
 	if absf(raw_angle) > 1.2:
 		wear_rad = deg_to_rad(absf(raw_angle))
 	else:
 		wear_rad = absf(raw_angle)
-	wear_rad = clampf(wear_rad, 0.0, 0.62)
+	wear_rad = clampf(wear_rad, 0.0, 0.65)
 
-	var top_taper: float = params.get("top_taper", 1.01) # Clean cylindrical bucket crown
-	var visor_arch: float = params.get("visor_arch", 0.026) # Duckbill cross-sectional arch
-	var visor_droop: float = params.get("visor_droop", 0.024)
+	# 5. 帽顶微锥度/微喇度 (top_taper)
+	var top_taper: float = clampf(float(params.get("top_taper", 1.015)), 0.85, 1.25)
+	var visor_arch: float = 0.024 # Duckbill cross-sectional arch
+	var visor_droop: float = 0.022 # Downward projection angle
 
-	# Surface-snapped pivot on HeadRig dome: slides along the upper-back cranium arc as wear_rad increases
-	# so the bucket cap stays 100% flush against the head at any wearing angle without floating or brow-clipping!
+	# Pivot anchored near upper-forehead brow transition so front brim stays locked near brow while cap tilts
 	var pivot := Node3D.new()
 	pivot.name = "CapPivot"
-	var dome_center := Vector3(0.0, 0.298, -0.006)
-	pivot.position = dome_center + Vector3(0.0, cos(wear_rad) * 0.122, -sin(wear_rad) * 0.132)
+	var anchor_y := 0.378 + 0.015 * cos(wear_rad)
+	var anchor_z := 0.032 - 0.050 * sin(wear_rad)
+	pivot.position = Vector3(0.0, anchor_y, anchor_z)
 	pivot.rotation.x = -wear_rad
 	hat_root.add_child(pivot)
 
-	# 1. Cylindrical Bucket Crown (桶身) with Flat Top & Crisp Beveled Upper Edge
-	var rings := 22
 	var sides := 48
-	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
 
-	for i in rings + 1:
-		var t := float(i) / rings
-		var y: float
-		var r_scale: float
-		if t < 0.84:
-			var ct := t / 0.84
-			y = lerpf(0.0, barrel_height, ct)
-			# Subtle cylindrical barrel profile with structured lower headband waist
-			var barrel_curve := 1.0 + 0.012 * sin(ct * PI)
-			r_scale = lerpf(1.0, top_taper, pow(ct, 0.85)) * barrel_curve
-		elif t < 0.90:
-			# Rounded top bevel corner
-			var bt := (t - 0.84) / 0.06
-			y = barrel_height + 0.008 * sin(bt * PI * 0.5)
-			r_scale = lerpf(top_taper, top_taper * 0.95, bt)
-		else:
-			# Flat circular bucket top closure
-			var cap_t := (t - 0.90) / 0.10
-			y = barrel_height + 0.008 + 0.004 * cos(cap_t * PI * 0.5)
-			r_scale = lerpf(top_taper * 0.95, 0.002, pow(cap_t, 1.25))
-		var rx := barrel_width * r_scale
-		var rz := barrel_width * 1.05 * r_scale
+	# 1. Tall Cylindrical Bucket Crown (高筒帽身) + Crisp Beveled Rim + Flat Top Disk
+	# A) Outer Cylinder Wall with contoured lower rim cupping brow & occiput
+	var wall_rings := 24
+	var wall_verts := PackedVector3Array()
+	var wall_inds := PackedInt32Array()
+
+	var rx_base := barrel_width
+	var rz_base := barrel_width * 1.05
+	var rx_top := barrel_width * top_taper
+	var rz_top := barrel_width * 1.05 * top_taper
+
+	for i in wall_rings + 1:
+		var t := float(i) / wall_rings
+		var r_blend := pow(t, 0.90)
+		var rx := lerpf(rx_base, rx_top, r_blend)
+		var rz := lerpf(rz_base, rz_top, r_blend)
+
 		for s in sides + 1:
 			var a := TAU * float(s) / sides
-			vertices.append(Vector3(cos(a) * rx, y, sin(a) * rz))
+			var ca := cos(a)
+			var sa := sin(a)
+			# Contoured lower rim: front rests at brow, back drops slightly (-0.026) to cup occiput
+			var base_drop := -0.026 * (1.0 - sa) * 0.5 # sa = 1 is front (+Z), sa = -1 is back (-Z)
+			var cur_y := lerpf(base_drop, barrel_height, t)
+			wall_verts.append(Vector3(ca * rx, cur_y, sa * rz))
 
-	for i in rings:
+	for i in wall_rings:
 		for s in sides:
 			var a := i * (sides + 1) + s
 			var b := a + sides + 1
-			emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, Vector3(0, barrel_height * 0.45, 0))
-	build_mesh_instance(pivot, "CapCrown", vertices,
-		compute_welded_normals(vertices, indices), indices, crown_color, 0.88, 0.0004)
+			emit_quad_outward(wall_verts, wall_inds, a, a + 1, b + 1, b, Vector3(0, barrel_height * 0.5, 0))
 
-	# 2. Structured Lower Bucket Headband Band — Extruded directly from CapCrown base rings
-	_extrude_uv_strip_from_grid(pivot, "HeadbandSeam", vertices, rings, sides,
-		0.0, 0.18, 0.0, 1.0, 4, sides, 0.0036, 0.0015, Vector3(0, barrel_height * 0.2, 0), crown_color.darkened(0.08))
+	# Double-sided inner wall so the cap has true fabric thickness when viewed from below
+	var inner_offset := 0.004
+	var wall_vert_count := wall_verts.size()
+	for vi in wall_vert_count:
+		var p := wall_verts[vi]
+		var in_p := p * Vector3(1.0 - inner_offset / rx_base, 1.0, 1.0 - inner_offset / rz_base)
+		wall_verts.append(in_p)
+	for i in wall_rings:
+		for s in sides:
+			var a := i * (sides + 1) + s
+			var b := a + sides + 1
+			var ia := wall_vert_count + a
+			var ib := wall_vert_count + b
+			emit_quad_outward(wall_verts, wall_inds, ia, ib, ib + 1, ia + 1, Vector3(0, barrel_height * 0.5, 0))
 
-	# 3. Subtle Thin Red Vertical Side Seam Piping (图1左款侧面一条细红线嵌条，不在正面放粗红条)
-	for side_u: float in [0.0, 0.5]:
-		var u0 := maxf(0.0, side_u - 0.004)
-		var u1 := minf(1.0, side_u + 0.004)
-		_extrude_uv_strip_from_grid(pivot, "SideRedPipingL" if side_u < 0.25 else "SideRedPipingR",
-			vertices, rings, sides, 0.02, 0.86, u0, u1, 14, 2,
-			0.0032, 0.0012, Vector3(0, barrel_height * 0.45, 0), piping_color)
+	# Bottom edge closure (sealing outer wall to inner wall)
+	for s in sides:
+		var a := s
+		var ia := wall_vert_count + a
+		emit_quad_outward(wall_verts, wall_inds, a, a + 1, ia + 1, ia, Vector3(0, -0.05, 0))
 
-	# 4. Curved Duckbill Peaked Visor (鸭舌帽舌 — 横截面呈自然拱弧形，前伸长度由 visor_length 控制)
+	build_mesh_instance(pivot, "CapBarrel", wall_verts,
+		compute_welded_normals(wall_verts, wall_inds), wall_inds, crown_color, 0.88, 0.0004)
+
+	# B) Razor-Flat Top Lid Disk (平顶帽盖) with crisp beveled edge
+	var disk_rings := 8
+	var disk_verts := PackedVector3Array()
+	var disk_inds := PackedInt32Array()
+	var top_y := barrel_height
+
+	for i in disk_rings + 1:
+		var dt := float(i) / disk_rings
+		# dt = 0 is outer rim, dt = 1 is disk center
+		var r_fac := 1.0 - dt
+		# Outer bevel at rim (dt in [0, 0.25]): slight 2mm chamfer
+		var chamfer_y := -0.003 * (1.0 - smoothstep(0.0, 0.25, dt))
+		var cur_rx := rx_top * r_fac
+		var cur_rz := rz_top * r_fac
+		for s in sides + 1:
+			var a := TAU * float(s) / sides
+			disk_verts.append(Vector3(cos(a) * cur_rx, top_y + chamfer_y, sin(a) * cur_rz))
+
+	for i in disk_rings:
+		for s in sides:
+			var a := i * (sides + 1) + s
+			var b := a + sides + 1
+			emit_quad_outward(disk_verts, disk_inds, a, a + 1, b + 1, b, Vector3(0, top_y - 0.2, 0))
+
+	build_mesh_instance(pivot, "CapTopLid", disk_verts,
+		compute_welded_normals(disk_verts, disk_inds), disk_inds, crown_color, 0.88, 0.0004)
+
+	# 2. Structured Lower Headband (下圈结构性帽圈/帽箍) — 贴合帽身底部，增强军帽/解放帽挺拔结构感
+	var band_height := minf(0.055, barrel_height * 0.22)
+	var band_rings := 4
+	var band_verts := PackedVector3Array()
+	var band_inds := PackedInt32Array()
+	for i in band_rings + 1:
+		var bt := float(i) / band_rings
+		var by := bt * band_height
+		var b_rx := (rx_base + 0.0025) * (1.0 + 0.005 * bt)
+		var b_rz := (rz_base + 0.0025) * (1.0 + 0.005 * bt)
+		for s in sides + 1:
+			var a := TAU * float(s) / sides
+			var sa := sin(a)
+			var base_drop := -0.026 * (1.0 - sa) * 0.5
+			band_verts.append(Vector3(cos(a) * b_rx, by + base_drop * (1.0 - bt * 0.6), sin(a) * b_rz))
+
+	for i in band_rings:
+		for s in sides:
+			var a := i * (sides + 1) + s
+			var b := a + sides + 1
+			emit_quad_outward(band_verts, band_inds, a, a + 1, b + 1, b, Vector3(0, band_height * 0.5, 0))
+
+	build_mesh_instance(pivot, "CapHeadband", band_verts,
+		compute_welded_normals(band_verts, band_inds), band_inds, crown_color.darkened(0.06), 0.90, 0.0004)
+
+	# 3. 前伸硬质弧形鸭舌帽檐 (Visor) — 严格遵照图1左款鸭舌轮廓，前伸挺拔、截面自然拱弧
 	var v_grid := PackedVector3Array()
-	var u_steps := 26
-	var v_steps := 8
+	var u_steps := 28
+	var v_steps := 10
 	for iv in v_steps + 1:
-		var vt := float(iv) / v_steps # 0 = welded to front headband arc, 1 = outer duckbill visor edge
+		var vt := float(iv) / v_steps # 0 = welded to front headband, 1 = outer edge
 		for iu in u_steps + 1:
-			var ut := float(iu) / u_steps
-			var ang := lerpf(PI * 0.16, PI * 0.84, ut) # Front 122° arc around +Z (sin(ang) > 0)
+			var ut := float(iu) / u_steps # 0 = left temple, 0.5 = center front (+Z), 1 = right temple
+			# Front ~126° arc around +Z
+			var ang := lerpf(PI * 0.15, PI * 0.85, ut)
 			var arch_env := sin(ut * PI)
-			var root_x := cos(ang) * (barrel_width + 0.002)
-			var root_z := sin(ang) * (barrel_width * 1.05 + 0.002)
-			var root_y := 0.012 + visor_arch * pow(arch_env, 0.85)
+			var root_x := cos(ang) * (rx_base + 0.003)
+			var root_z := sin(ang) * (rz_base + 0.003)
+			var root_y := 0.008 + visor_arch * pow(arch_env, 0.82)
 
-			# Duckbill visor projection: full visor_length at center front, curving smoothly to temple corners
-			var forward_reach := visor_length * pow(arch_env, 0.58)
-			var tip_x := root_x * (1.0 - 0.06 * vt * arch_env)
+			# Duckbill visor projection: forward_reach reaches full visor_length at center front
+			var forward_reach := visor_length * pow(arch_env, 0.55)
+			var tip_x := root_x * (1.0 - 0.045 * vt * arch_env)
 			var tip_z := root_z + forward_reach * vt
-			var tip_y := root_y - visor_droop * vt - 0.014 * vt * (1.0 - arch_env)
+			var tip_y := root_y - visor_droop * vt - 0.012 * vt * (1.0 - arch_env)
 
 			v_grid.append(Vector3(tip_x, tip_y, tip_z))
 
 	_build_extruded_surface_strip(pivot, "CapVisor", v_grid, v_steps, u_steps,
 		0.0055, 0.0045, Vector3(0, -0.25, 0.0), visor_color)
 	_extrude_uv_strip_from_grid(pivot, "CapVisorRimBinding", v_grid, v_steps, u_steps,
-		0.82, 1.0, 0.0, 1.0, 2, u_steps, 0.0065, 0.0050, Vector3(0, -0.25, 0.0), visor_color.lightened(0.05))
+		0.80, 1.0, 0.0, 1.0, 2, u_steps, 0.0065, 0.0050, Vector3(0, -0.25, 0.0), visor_color.lightened(0.04))
 
-	# Tuck any hair/head vertices above the brim neatly inside the bucket crown so zero clipping occurs
-	_tuck_hair_under_hat(target_head, pivot, barrel_width, barrel_width * 1.05, barrel_height * 0.82, -0.018)
+	# 4. Tuck any hair/head vertices above the brim inside the bucket crown
+	_tuck_hair_under_hat(target_head, pivot, barrel_width, barrel_width * 1.05, maxf(0.32, barrel_height * 0.90), -0.024)
 
 	return hat_root
 

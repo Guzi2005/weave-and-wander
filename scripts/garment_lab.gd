@@ -1074,9 +1074,11 @@ func _refresh_silhouette_controls() -> void:
 		_add_slider(silhouette_controls_container, "半高领高 (collar height)", "collar_height", 0.04, 0.10, 0.005, 0.068, params)
 
 	elif item_id == "16":
-		_add_slider(silhouette_controls_container, "桶高 (barrel height)", "barrel_height", 0.08, 0.22, 0.01, 0.14, params)
-		_add_slider(silhouette_controls_container, "桶半径 (cap radius)", "cap_radius", 0.28, 0.38, 0.01, 0.325, params)
-		_add_slider(silhouette_controls_container, "帽舌长度 (visor length)", "visor_length", 0.04, 0.14, 0.01, 0.088, params)
+		_add_slider(silhouette_controls_container, "筒高 (barrel height)", "barrel_height", 0.10, 0.72, 0.01, 0.38, params)
+		_add_slider(silhouette_controls_container, "筒宽/半径 (cap radius)", "barrel_width", 0.26, 0.40, 0.005, 0.302, params)
+		_add_slider(silhouette_controls_container, "帽舌长度 (visor length)", "visor_length", 0.06, 0.24, 0.005, 0.135, params)
+		_add_slider(silhouette_controls_container, "佩戴倾角 (tilt angle °)", "wear_angle", 0.0, 36.0, 1.0, 16.0, params)
+		_add_slider(silhouette_controls_container, "帽顶锥度 (top taper)", "top_taper", 0.88, 1.20, 0.01, 1.015, params)
 
 	elif item_id == "17":
 		_add_slider(silhouette_controls_container, "圆锥高度 (cone height)", "cone_height", 0.16, 0.36, 0.02, 0.25, params)
