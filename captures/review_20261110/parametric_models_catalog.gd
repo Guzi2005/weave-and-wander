@@ -342,7 +342,7 @@ static func _head_neck_min_radii(y: float, angle: float, cover_ears: bool = fals
 
 # Build a closed 3D volumetric hair shell from outer & inner grids (rows+1 x cols+1) so hair never has paper-thin edges or missing backfaces
 static func _build_thick_hair_curtain(parent: Node3D, label: String, outer_grid: PackedVector3Array,
-		inner_grid: PackedVector3Array, rows: int, cols: int, color: Color) -> MeshInstance3D:
+		inner_grid: PackedVector3Array, rows: int, cols: int, color: Color, wrap_u: bool = false) -> MeshInstance3D:
 	var vertices := PackedVector3Array()
 	var indices := PackedInt32Array()
 	var stride := cols + 1
@@ -374,14 +374,15 @@ static func _build_thick_hair_curtain(parent: Node3D, label: String, outer_grid:
 		var ia := grid_count + oa
 		emit_quad_outward(vertices, indices, oa, oa + 1, ia + 1, ia, Vector3(0, outer_grid[oa].y + 0.08, -0.02))
 
-	# Stitch left edge (c = 0) and right edge (c = cols)
-	for r in rows:
-		var l_out := r * stride
-		var l_in := grid_count + l_out
-		emit_quad_outward(vertices, indices, l_out, l_out + stride, l_in + stride, l_in, Vector3(0, outer_grid[l_out].y, -0.02))
-		var r_out := r * stride + cols
-		var r_in := grid_count + r_out
-		emit_quad_outward(vertices, indices, r_out, r_in, r_in + stride, r_out + stride, Vector3(0, outer_grid[r_out].y, -0.02))
+	# Stitch left edge (c = 0) and right edge (c = cols) ONLY when not wrapping around!
+	if not wrap_u:
+		for r in rows:
+			var l_out := r * stride
+			var l_in := grid_count + l_out
+			emit_quad_outward(vertices, indices, l_out, l_out + stride, l_in + stride, l_in, Vector3(0, outer_grid[l_out].y, -0.02))
+			var r_out := r * stride + cols
+			var r_in := grid_count + r_out
+			emit_quad_outward(vertices, indices, r_out, r_in, r_in + stride, r_out + stride, Vector3(0, outer_grid[r_out].y, -0.02))
 
 	return build_mesh_instance(parent, label, vertices, compute_welded_normals(vertices, indices), indices, color)
 
@@ -590,6 +591,7 @@ static func _push_outside_head(p: Vector3, margin: float = 0.0) -> Vector3:
 
 
 # Split a guide surface into individual hair locks. Returns the shortest lock end (in guide-t units).
+# When split=false: treated as 缕=1 (single continuous strand lock spanning the whole guide section).
 static func _build_strand_locks(parent: Node3D, label: String, outer_grid: PackedVector3Array,
 		inner_grid: PackedVector3Array, rows: int, cols: int, color: Color, sp: Dictionary,
 		wrap_u: bool = false) -> float:
@@ -597,12 +599,7 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 	group.name = label
 	parent.add_child(group)
 
-	if not bool(sp.get("split", true)):
-		# Backward-compatibility: returns exact original seamless solid curtain mesh
-		_build_thick_hair_curtain(group, label + "_Solid", outer_grid, inner_grid, rows, cols, color)
-		group.set_meta("lock_count", 1)
-		return 1.0
-
+	var is_split: bool = bool(sp.get("split", true))
 	var stride := cols + 1
 
 	# Lock count from the real arc width of the section (measured on a lower guide row)
@@ -612,11 +609,18 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 		arc += outer_grid[ref_r * stride + c].distance_to(outer_grid[ref_r * stride + c + 1])
 	var w: float = float(sp["strand_width"])
 	var g: float = float(sp["strand_gap"])
-	var n := maxi(1, int(round(arc / maxf(0.01, w + g))))
-	if not wrap_u and n < 2 and arc > w * 1.5:
-		n = 2
+
+	var n: int = 1
+	if is_split:
+		n = maxi(1, int(round(arc / maxf(0.01, w + g))))
+		if not wrap_u and n < 2 and arc > w * 1.5:
+			n = 2
+	else:
+		# 用户指令：“可以留着“发片分缕”开关，但是将其视为缕=1”
+		n = 1
+
 	var pitch := 1.0 / float(n)
-	var fill := clampf(w / maxf(0.005, w + g), 0.2, 2.0)
+	var fill := 1.0 if not is_split else clampf(w / maxf(0.005, w + g), 0.2, 2.0)
 
 	var path_len := 0.0
 	var mid_c := cols / 2
@@ -629,7 +633,9 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 	var wav: float = float(sp["wavy"])
 	var freq: float = float(sp["wavy_freq"])
 	var lock_rows := maxi(14, rows)
-	var lock_cols := 4
+	# For multi-strand locks (n > 1), lock_cols = 4 is sufficient per narrow strand.
+	# For single strand lock (n = 1), lock_cols = maxi(cols, 16) to ensure silky smooth curvature across the full curtain.
+	var lock_cols := maxi(cols, 16) if not is_split else 4
 	var min_t_end := 9.0
 
 	for i in n:
@@ -643,35 +649,61 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 				dy = tan_a * cos(u_c * TAU) * cut_span # tubes: slant across the tail cross-section
 			_:
 				dy = tan_a * h * cut_span # linear: diagonal cut from one side to the other
-		var jitter := float(sp["length_jitter"]) * sin(float(i) * 12.9898 + 4.1) * 0.5 * (1.0 + cos(float(i) * 7.31))
+		var jitter := (float(sp["length_jitter"]) * sin(float(i) * 12.9898 + 4.1) * 0.5 * (1.0 + cos(float(i) * 7.31))) if is_split else 0.0
 		var t_end := clampf(float(sp["length_scale"]) + (dy + jitter) / path_len, 0.2, 1.4)
 		min_t_end = minf(min_t_end, t_end)
-		var half_u := pitch * fill * 0.5
+		var half_u := 0.5 if not is_split else (pitch * fill * 0.5)
 		var phase := float(i) * 2.399
 
 		var o_pts := PackedVector3Array()
 		var i_pts := PackedVector3Array()
 		for r in lock_rows + 1:
 			var lt := float(r) / lock_rows
-			var t := lt * t_end
 			var taper := 1.0 - float(sp["tip_taper"]) * smoothstep(0.70, 1.0, lt)
 
 			# Crown fit & feathering:
 			# 1. At the crown (lt -> 0), locks smoothly converge side-by-side with zero gap to form a continuous cranial crown
 			var root_blend := smoothstep(0.0, 0.24, lt)
-			var root_fill := lerpf(pitch * 0.505, half_u, root_blend)
+			var root_fill: float
+			if not is_split:
+				# 缕=1: spans full width 0.0 .. 1.0 from crown to tip, with gentle tip taper if set
+				root_fill = lerpf(0.5, 0.5 * (1.0 - float(sp["tip_taper"]) * 0.25 * smoothstep(0.70, 1.0, lt)), root_blend)
+			else:
+				root_fill = lerpf(pitch * 0.505, half_u, root_blend)
 
 			# 2. Waves start only below the cranial dome so the crown stays snug against skull
-			var wave_env := smoothstep(0.18, 0.50, t)
-			var wave_s := sin(TAU * freq * t + phase)
-			var wave_c := 0.5 + 0.5 * cos(TAU * freq * t + phase)
+			var wave_env := smoothstep(0.18, 0.50, lt * t_end)
+			var wave_s := sin(TAU * freq * (lt * t_end) + phase)
+			var wave_c := 0.5 + 0.5 * cos(TAU * freq * (lt * t_end) + phase)
 
 			# 3. Root thickness feathers flush to scalp cap: eliminates stair-stepped edge or bottle-cap lid
 			var root_thick := lerpf(0.12, 1.0, root_blend)
 
 			for c in lock_cols + 1:
-				var s := float(c) / lock_cols
-				var u := u_c + (s * 2.0 - 1.0) * root_fill * taper
+				var s := float(c) / float(lock_cols)
+				var u: float
+				var cur_t_end := t_end
+				if not is_split:
+					# 缕=1: u covers entire section width 0.0 to 1.0 across columns
+					u = u_c + (s * 2.0 - 1.0) * root_fill
+					if not wrap_u:
+						u = clampf(u, 0.0, 1.0)
+					# Allow cut angle (e.g. A-line or diagonal) to vary across the single strand width!
+					if absf(tan_a) > 0.001:
+						var col_h := s * 2.0 - 1.0
+						var col_dy := 0.0
+						match str(sp["cut_mode"]):
+							"symmetric":
+								col_dy = tan_a * absf(col_h) * cut_span
+							"radial":
+								col_dy = tan_a * cos(s * TAU) * cut_span
+							_:
+								col_dy = tan_a * col_h * cut_span
+						cur_t_end = clampf(float(sp["length_scale"]) + col_dy / path_len, 0.2, 1.4)
+				else:
+					u = u_c + (s * 2.0 - 1.0) * root_fill * taper
+
+				var t := lt * cur_t_end
 				var p_in := _grid_sample(inner_grid, rows, cols, t, u, wrap_u)
 				var p_out := _grid_sample(outer_grid, rows, cols, t, u, wrap_u)
 				var pa := _grid_sample(outer_grid, rows, cols, t, u + 0.012, wrap_u)
@@ -686,7 +718,15 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 					ndir = Vector3(p_out.x, 0.0, p_out.z).normalized()
 				# Waviness oscillates around the ORIGINAL guide path (sideways + slight outward lift), roots stay fixed
 				var disp := (tan_u * wave_s + ndir * 0.45 * wave_c) * wav * wave_env
-				var edge := 0.45 + 0.55 * sin(s * PI)
+
+				var edge: float = 1.0
+				if not is_split:
+					# 缕=1: seamless cylindrical or smooth open curtain with soft edge taper
+					edge = 1.0 if wrap_u else lerpf(0.78, 1.0, sin(s * PI))
+				else:
+					# Multi-strand: pillowed rounded lock edges
+					edge = 0.45 + 0.55 * sin(s * PI)
+
 				var tip_thin := 1.0 - 0.55 * smoothstep(0.80, 1.0, lt)
 				var thick := maxf(0.003, depth) * float(sp["thickness"]) * edge * tip_thin * root_thick
 				var base_p := p_in + disp
@@ -694,9 +734,10 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 					base_p = _push_outside_head(base_p)
 				i_pts.append(base_p)
 				o_pts.append(base_p + ndir * thick)
-		var tint := 0.022 * sin(float(i) * 3.7)
+		var tint := (0.022 * sin(float(i) * 3.7)) if is_split else 0.0
 		var lock_color := color.lightened(tint) if tint > 0.0 else color.darkened(-tint)
-		_build_thick_hair_curtain(group, "%s_Lock%02d" % [label, i], o_pts, i_pts, lock_rows, lock_cols, lock_color)
+		var is_curtain_wrapped := wrap_u and not is_split
+		_build_thick_hair_curtain(group, "%s_Lock%02d" % [label, i], o_pts, i_pts, lock_rows, lock_cols, lock_color, is_curtain_wrapped)
 	group.set_meta("lock_count", n)
 	return min_t_end
 

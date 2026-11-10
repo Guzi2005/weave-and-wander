@@ -991,7 +991,7 @@ func _refresh_silhouette_controls() -> void:
 
 	# Silhouette specific sliders
 	if active_tune_slot == "hair":
-		_add_checkbox(silhouette_controls_container, "发片分缕 (split locks)", "split", true, params, func(val: bool) -> void:
+		_add_checkbox(silhouette_controls_container, "发片分缕 (开:多缕分缕 / 关:缕=1整片)", "split", true, params, func(val: bool) -> void:
 			params["split"] = val
 			_rebuild_modular_mannequin())
 		_add_slider(silhouette_controls_container, "发缕波浪 (wavy amp)", "wavy", 0.0, 0.08, 0.005, 0.0, params)
