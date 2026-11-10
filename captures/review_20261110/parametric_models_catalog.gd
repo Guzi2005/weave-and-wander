@@ -291,19 +291,23 @@ static func clear_hair_slot(doll_or_head: Node3D) -> Node3D:
 static func _head_neck_min_radii(y: float, angle: float, cover_ears: bool = false) -> Vector2:
 	var ca := cos(angle) # +1 at front (+Z), -1 at back (-Z)
 	var sa := absf(sin(angle)) # +1 at left/right sides (±X)
-	var rx := 0.115
-	var rz := 0.105
-	# 1. Head ellipsoid envelope: center (0, 0.29, 0), radius (0.272, 0.300, 0.290)
-	if y >= -0.02 and y <= 0.61:
-		var ny := clampf((y - 0.29) / 0.304, -0.98, 0.99)
+	var rx := 0.0
+	var rz := 0.0
+
+	# 1. Head cranium ellipsoid envelope: center (0, 0.290, 0), semi-axes (0.276, 0.308, 0.294)
+	# Tapers smoothly to 0 at the crown pole (y = 0.598) so the crown never flattens into a bottle-cap rim
+	if y >= -0.02 and y <= 0.615:
+		var ny := clampf((y - 0.290) / 0.308, -0.99, 0.999)
 		var ring := sqrt(maxf(0.0, 1.0 - ny * ny))
-		rx = maxf(rx, 0.276 * ring)
-		rz = maxf(rz, 0.294 * ring)
+		rx = 0.276 * ring
+		rz = 0.294 * ring
+
 	# 2. Ear envelope: center (±0.267, 0.238, 0.01), outer extent |x| = 0.322 for y in [0.15, 0.32]
 	if cover_ears and y >= 0.13 and y <= 0.34:
 		var ear_y_factor := clampf(1.0 - pow((y - 0.238) / 0.105, 2.0), 0.0, 1.0)
 		var ear_side_factor := smoothstep(0.65, 0.92, sa) * (1.0 - smoothstep(0.25, 0.65, absf(ca - 0.03)))
 		rx = maxf(rx, (0.280 + 0.052 * ear_y_factor) * ear_side_factor)
+
 	# 3. V20 Neck & Shoulder/Torso envelope below head (HeadRig origin is world (0, 2.02, 0.035))
 	var world_y := 2.02 + y
 	if world_y <= 2.00:
@@ -311,6 +315,11 @@ static func _head_neck_min_radii(y: float, angle: float, cover_ears: bool = fals
 		var shoulder_extra_x := 0.045 * smoothstep(1.62, 1.84, world_y) * smoothstep(1.94, 1.84, world_y) * sa
 		rx = maxf(rx, float(sl["rx"]) + shoulder_extra_x + 0.034)
 		rz = maxf(rz, float(sl["rz"]) + 0.036 + (0.025 if ca < 0.0 else 0.015))
+	elif y < 0.15:
+		# Lower neck base below cranium
+		rx = maxf(rx, 0.115)
+		rz = maxf(rz, 0.105)
+
 	return Vector2(rx, rz)
 
 
@@ -335,6 +344,12 @@ static func _build_thick_hair_curtain(parent: Node3D, label: String, outer_grid:
 			var ib := grid_count + b
 			# Reverse interior reference for inner wall so normals point inward toward head
 			emit_quad_outward(vertices, indices, ia, ib, ib + 1, ia + 1, outer_grid[a] * 2.0 - center_pt)
+
+	# Stitch top hem (r = 0) so hair roots are completely sealed against scalp without open gaps
+	for c in cols:
+		var oa := c
+		var ia := grid_count + oa
+		emit_quad_outward(vertices, indices, ia, ia + 1, oa + 1, oa, Vector3(0, outer_grid[oa].y - 0.02, -0.02))
 
 	# Stitch bottom hem (r = rows)
 	for c in cols:
@@ -390,10 +405,11 @@ static func build_base_scalp_cap(hair_root: Node3D, color: Color, front_phi: flo
 			var unit := Vector3(sin(phi) * sin(angle), cos(phi), sin(phi) * cos(angle))
 			var strand_wave := 1.0 + 0.004 * sin(angle * 14.0) * sin(phi * 3.0)
 			var part_indent := 0.008 * exp(-pow((unit.x * 0.30 - part_x) / 0.022, 2.0)) * smoothstep(0.1, 0.85, v) * smoothstep(-0.1, 0.5, ca)
-			# Keep center at y=0.290, z=0.0 on front so forehead is always outside HEAD_RADIUS (0.272, 0.300, 0.290)
-			var rx := 0.292 * crown_scale * strand_wave
-			var ry := 0.324 * crown_scale - part_indent
-			var rz := 0.308 * crown_scale * strand_wave
+			# Anatomical cranium envelope: hugs HEAD_RADIUS (0.272, 0.300, 0.290) snugly with organic 4-6mm hair clearance
+			# Eliminates bloated swimming-cap / bottle-cap bulge across the frontal skull
+			var rx := (0.274 + 0.003 * crown_scale) * strand_wave
+			var ry := (0.302 + 0.004 * crown_scale) - part_indent
+			var rz := (0.292 + 0.003 * crown_scale) * strand_wave
 			var back_z_shift := -0.016 * smoothstep(0.1, -0.8, ca) * sin(phi)
 			vertices.append(Vector3(unit.x * rx, 0.290 + unit.y * ry, unit.z * rz + back_z_shift))
 	for r in rows:
@@ -426,18 +442,20 @@ static func build_front_bangs(hair_root: Node3D, color: Color, bang_bottom_y: fl
 			if split_width > 0.001:
 				split_lift = 0.048 * exp(-pow((u - split_center_x) / maxf(0.08, split_width), 2.0))
 			var end_y := lerpf(bang_bottom_y + center_arch + split_lift, bang_bottom_y - side_lock_drop, temple_blend)
-			var start_y := 0.585 - 0.032 * abs_u * abs_u
+			# Front bangs root emerges at true cranial crown (y ~ 0.598) flush with ScalpCap & canopy locks
+			var start_y := 0.598 - 0.018 * abs_u * abs_u
 			var y := lerpf(start_y, end_y, t)
 
-			# Exact head surface at height y so inner surface never clips forehead or cheeks
-			var norm_y := clampf((y - 0.290) / 0.304, -0.95, 0.985)
-			var ring_r := sqrt(maxf(0.03, 1.0 - norm_y * norm_y))
-			var min_rx := 0.276 * ring_r + 0.006
-			var min_rz := 0.294 * ring_r + 0.006
+			# Exact head surface at height y so inner surface hugs forehead/brow snugly without clipping
+			var norm_y := clampf((y - 0.290) / 0.304, -0.95, 0.992)
+			var ring_r := sqrt(maxf(0.01, 1.0 - norm_y * norm_y))
+			var min_rx := 0.274 * ring_r + 0.005
+			var min_rz := 0.292 * ring_r + 0.005
 
-			# Plush 3D bang thickness with gentle vertical lock flutes
+			# Plush 3D bang thickness with feathered root so roots blend flush into the scalp cap without bottle-cap ledge
+			var root_blend := smoothstep(0.0, 0.22, t)
 			var flute := 0.0035 * cos(u * PI * 9.0) * sin(t * PI)
-			var thickness := lerpf(0.016, 0.022, sin(t * PI * 0.78)) * (1.0 - 0.45 * pow(t, 3.0)) + flute
+			var thickness := lerpf(0.005, 0.020, sin(t * PI * 0.78)) * (1.0 - 0.45 * pow(t, 3.0)) * lerpf(0.25, 1.0, root_blend) + flute
 			var out_rx := min_rx + thickness
 			var out_rz := min_rz + thickness
 
@@ -526,6 +544,23 @@ static func _grid_sample(grid: PackedVector3Array, rows: int, cols: int, t: floa
 
 # Push a HeadRig-local point radially outside the head / ear / neck-shoulder envelope.
 static func _push_outside_head(p: Vector3, margin: float = 0.0) -> Vector3:
+	# 1. Upper cranial dome (y >= 0.35): push along 3D ellipsoid normal so crown vertices round upward naturally instead of flaring into a flat cylinder/bottle-cap
+	if p.y >= 0.35:
+		var head_cy := 0.290
+		var rx_3d := 0.274 + margin
+		var ry_3d := 0.302 + margin
+		var rz_3d := 0.292 + margin
+		var dx := p.x / rx_3d
+		var dy := (p.y - head_cy) / ry_3d
+		var dz := p.z / rz_3d
+		var d3 := sqrt(dx * dx + dy * dy + dz * dz)
+		if d3 < 1.0 and d3 > 0.0001:
+			p.x = dx / d3 * rx_3d
+			p.y = head_cy + dy / d3 * ry_3d
+			p.z = dz / d3 * rz_3d
+		return p
+
+	# 2. Lower head, ears & neck: horizontal envelope push
 	var ang := atan2(p.x, p.z)
 	var env := _head_neck_min_radii(p.y, ang, true)
 	var rx := maxf(0.01, env.x + margin)
@@ -576,7 +611,7 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 	var cut_span: float = float(sp["cut_span"])
 	var wav: float = float(sp["wavy"])
 	var freq: float = float(sp["wavy_freq"])
-	var lock_rows := maxi(12, rows)
+	var lock_rows := maxi(14, rows)
 	var lock_cols := 4
 	var min_t_end := 9.0
 
@@ -603,12 +638,23 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 			var lt := float(r) / lock_rows
 			var t := lt * t_end
 			var taper := 1.0 - float(sp["tip_taper"]) * smoothstep(0.70, 1.0, lt)
-			var wave_env := smoothstep(0.10, 0.45, t)
+
+			# Crown fit & feathering:
+			# 1. At the crown (lt -> 0), locks smoothly converge side-by-side with zero gap to form a continuous cranial crown
+			var root_blend := smoothstep(0.0, 0.24, lt)
+			var root_fill := lerpf(pitch * 0.505, half_u, root_blend)
+
+			# 2. Waves start only below the cranial dome so the crown stays snug against skull
+			var wave_env := smoothstep(0.18, 0.50, t)
 			var wave_s := sin(TAU * freq * t + phase)
 			var wave_c := 0.5 + 0.5 * cos(TAU * freq * t + phase)
+
+			# 3. Root thickness feathers flush to scalp cap: eliminates stair-stepped edge or bottle-cap lid
+			var root_thick := lerpf(0.12, 1.0, root_blend)
+
 			for c in lock_cols + 1:
 				var s := float(c) / lock_cols
-				var u := u_c + (s * 2.0 - 1.0) * half_u * taper
+				var u := u_c + (s * 2.0 - 1.0) * root_fill * taper
 				var p_in := _grid_sample(inner_grid, rows, cols, t, u, wrap_u)
 				var p_out := _grid_sample(outer_grid, rows, cols, t, u, wrap_u)
 				var pa := _grid_sample(outer_grid, rows, cols, t, u + 0.012, wrap_u)
@@ -623,9 +669,9 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 					ndir = Vector3(p_out.x, 0.0, p_out.z).normalized()
 				# Waviness oscillates around the ORIGINAL guide path (sideways + slight outward lift), roots stay fixed
 				var disp := (tan_u * wave_s + ndir * 0.45 * wave_c) * wav * wave_env
-				var edge := 0.42 + 0.58 * sin(s * PI)
+				var edge := 0.45 + 0.55 * sin(s * PI)
 				var tip_thin := 1.0 - 0.55 * smoothstep(0.80, 1.0, lt)
-				var thick := maxf(0.004, depth) * float(sp["thickness"]) * edge * tip_thin
+				var thick := maxf(0.003, depth) * float(sp["thickness"]) * edge * tip_thin * root_thick
 				var base_p := p_in + disp
 				if bool(sp["head_push"]):
 					base_p = _push_outside_head(base_p)
@@ -749,41 +795,55 @@ static func build_hair_01_bob(doll: Node3D, params: Dictionary = {}) -> void:
 	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
 	build_front_bangs(hair_root, color, bang_y, 0.016, bang_split, 0.0, 0.17, bang_sp)
 
-	# Crown-closed 3D volumetric C-curl bob canopy guide grid
+	# Continuous 3D ellipsoidal cranial dome + C-curl bob canopy guide grid
 	var cols := 64
 	var rows := 26
 	var outer_grid := PackedVector3Array()
 	var inner_grid := PackedVector3Array()
-	var crown_y := 0.614 * crown_puff
+	var head_cy := 0.290
+	var R_x := 0.276 * crown_puff + 0.005
+	var R_y := 0.304 * crown_puff + 0.006 # apex at 0.290 + 0.316 = 0.606
+	var R_z := 0.294 * crown_puff + 0.005
 	var bottom_y := 0.34 - bob_length
+	var dome_ratio := 0.35
 
 	for r in rows + 1:
 		var t := float(r) / rows
-		var dome_t := clampf(t / 0.34, 0.0, 1.0)
-		var dome_env := sin(dome_t * PI * 0.5)
-		var lower_t := clampf((t - 0.30) / 0.70, 0.0, 1.0)
-		var y_dome := lerpf(crown_y, 0.32, 1.0 - cos(dome_t * PI * 0.5))
-		var y := (y_dome if t <= 0.34 else lerpf(0.32, bottom_y, (t - 0.34) / 0.66))
-		var bell := sin(lower_t * PI * 0.78)
-		var c_curl := inward_curl * pow(maxf(0.0, (lower_t - 0.45) / 0.55), 1.75)
+		var local_y: float
+		var base_rx: float
+		var base_rz: float
+		var wall_thick: float
+		var z_shift := 0.0
 
-		var base_rx := (0.296 + 0.052 * bell - c_curl) * crown_puff * dome_env
-		var base_rz := (0.312 + 0.042 * bell - c_curl * 0.85) * crown_puff * dome_env
-		var wall_thick := lerpf(0.010, 0.026, dome_env) * (1.0 - 0.35 * pow(lower_t, 2.5))
+		if t <= dome_ratio:
+			var dt := t / dome_ratio
+			var phi := lerpf(0.08, 1.46, pow(dt, 0.94))
+			local_y = head_cy + R_y * cos(phi)
+			var ring := sin(phi)
+			base_rx = R_x * ring
+			base_rz = R_z * ring
+			wall_thick = lerpf(0.006, 0.022, smoothstep(0.0, 0.8, dt))
+			z_shift = -0.010 * ring
+		else:
+			var lt := (t - dome_ratio) / (1.0 - dome_ratio)
+			local_y = lerpf(head_cy + R_y * cos(1.46), bottom_y, lt)
+			var bell := sin(lt * PI * 0.78)
+			var c_curl := inward_curl * pow(maxf(0.0, (lt - 0.45) / 0.55), 1.75)
+			base_rx = R_x + 0.048 * bell - c_curl
+			base_rz = R_z + 0.038 * bell - c_curl * 0.85
+			wall_thick = lerpf(0.022, 0.014, lt)
+			z_shift = -0.010
 
 		for c in cols + 1:
 			var u := float(c) / cols
 			var angle := lerpf(0.62, TAU - 0.62, u)
-			var edge_fade := smoothstep(0.0, 0.10, minf(u, 1.0 - u))
-			var local_y := y + 0.025 * (1.0 - edge_fade) * lower_t
-			var flute := 1.0 + 0.006 * cos(u * PI * 16.0) * sin(lower_t * PI)
+			var flute := 1.0 + 0.006 * cos(u * PI * 16.0) * sin(clampf((t - 0.15) / 0.85, 0.0, 1.0) * PI)
 
 			var min_env := _head_neck_min_radii(local_y, angle, true)
-			var in_rx := maxf(min_env.x * dome_env, base_rx - wall_thick)
-			var in_rz := maxf(min_env.y * dome_env, base_rz - wall_thick)
-			var out_rx := maxf(in_rx + 0.008 * dome_env, base_rx * flute)
-			var out_rz := maxf(in_rz + 0.008 * dome_env, base_rz * flute)
-			var z_shift := -0.014 * dome_env
+			var in_rx := maxf(min_env.x, base_rx - wall_thick)
+			var in_rz := maxf(min_env.y, base_rz - wall_thick)
+			var out_rx := maxf(in_rx + 0.006, base_rx * flute)
+			var out_rz := maxf(in_rz + 0.006, base_rz * flute)
 
 			outer_grid.append(Vector3(sin(angle) * out_rx, local_y, cos(angle) * out_rz + z_shift))
 			inner_grid.append(Vector3(sin(angle) * in_rx, local_y, cos(angle) * in_rz + z_shift))
@@ -883,42 +943,59 @@ static func build_hair_03_half_up_long(doll: Node3D, params: Dictionary = {}) ->
 	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
 	build_front_bangs(hair_root, color, 0.382, 0.020, 0.16, 0.0, 0.16, bang_sp)
 
-	# 1. Flowing long hair mantle guide grid
+	# 1. Flowing long hair mantle guide grid with continuous 3D ellipsoidal cranial dome
 	var cols := 52
 	var rows := 30
 	var outer_grid := PackedVector3Array()
 	var inner_grid := PackedVector3Array()
-	var crown_y := 0.618
+	var head_cy := 0.290
+	var R_x := 0.276 * 1.02 + 0.005
+	var R_y := 0.304 * 1.02 + 0.006 # apex at 0.606
+	var R_z := 0.294 * 1.02 + 0.005
 	var bottom_y := 0.36 - hair_length
+	var dome_ratio := 0.32
 
 	for r in rows + 1:
 		var t := float(r) / rows
-		var dome_t := clampf(t / 0.28, 0.0, 1.0)
-		var dome_env := sin(dome_t * PI * 0.5)
-		var lower_t := clampf((t - 0.24) / 0.76, 0.0, 1.0)
-		var y_dome := lerpf(crown_y, 0.34, 1.0 - cos(dome_t * PI * 0.5))
-		var y := (y_dome if t <= 0.28 else lerpf(0.34, bottom_y, (t - 0.28) / 0.72))
-		var wave_z := wave_amp * sin(lower_t * PI * 2.6) * smoothstep(0.05, 0.45, lower_t)
-		var width := lerpf(0.298, back_spread, smoothstep(0.0, 0.68, lower_t)) * (1.0 - 0.10 * pow(lower_t, 3.0)) * dome_env
-		var wall_thick := lerpf(0.010, 0.024, dome_env) * (1.0 - 0.35 * pow(lower_t, 2.5))
+		var local_y: float
+		var base_rx: float
+		var base_rz: float
+		var wall_thick: float
+		var z_drape := 0.0
+
+		if t <= dome_ratio:
+			var dt := t / dome_ratio
+			var phi := lerpf(0.08, 1.44, pow(dt, 0.94))
+			local_y = head_cy + R_y * cos(phi)
+			var ring := sin(phi)
+			base_rx = R_x * ring
+			base_rz = R_z * ring
+			wall_thick = lerpf(0.006, 0.022, smoothstep(0.0, 0.8, dt))
+			z_drape = -0.010 * ring
+		else:
+			var lt := (t - dome_ratio) / (1.0 - dome_ratio)
+			local_y = lerpf(head_cy + R_y * cos(1.44), bottom_y, lt)
+			var wave_z := wave_amp * sin(lt * PI * 2.6) * smoothstep(0.05, 0.45, lt)
+			var width := lerpf(0.298, back_spread, smoothstep(0.0, 0.68, lt)) * (1.0 - 0.10 * pow(lt, 3.0))
+			base_rx = width
+			base_rz = 0.312 + 0.030 * sin(lt * PI)
+			wall_thick = lerpf(0.022, 0.014, lt)
+			z_drape = -0.014 - 0.045 * smoothstep(0.15, 0.65, lt) + wave_z
 
 		for c in cols + 1:
 			var u := float(c) / cols
 			var angle := lerpf(0.72, TAU - 0.72, u)
-			var lock_ripple := 0.008 * cos(u * PI * 12.0) * sin(lower_t * PI)
-			var local_y := y + 0.018 * cos((u - 0.5) * PI) * lower_t
-			var min_env := _head_neck_min_radii(local_y, angle, true)
+			var lock_ripple := 0.006 * cos(u * PI * 12.0) * sin(clampf((t - 0.20) / 0.80, 0.0, 1.0) * PI)
+			var y_wave := local_y + 0.015 * cos((u - 0.5) * PI) * clampf((t - 0.25) / 0.75, 0.0, 1.0)
+			var min_env := _head_neck_min_radii(y_wave, angle, true)
 
-			var base_rx := width + lock_ripple
-			var base_rz := (0.318 + 0.032 * sin(lower_t * PI) + lock_ripple) * dome_env
-			var in_rx := maxf(min_env.x * dome_env, base_rx - wall_thick)
-			var in_rz := maxf(min_env.y * dome_env, base_rz - wall_thick)
-			var out_rx := maxf(in_rx + 0.009 * dome_env, base_rx)
-			var out_rz := maxf(in_rz + 0.009 * dome_env, base_rz)
-			var z_drape := (-0.014 - 0.045 * smoothstep(0.15, 0.65, lower_t) + wave_z) * dome_env
+			var in_rx := maxf(min_env.x, base_rx - wall_thick)
+			var in_rz := maxf(min_env.y, base_rz - wall_thick)
+			var out_rx := maxf(in_rx + 0.006, base_rx + lock_ripple)
+			var out_rz := maxf(in_rz + 0.006, base_rz + lock_ripple)
 
-			outer_grid.append(Vector3(sin(angle) * out_rx, local_y, cos(angle) * out_rz + z_drape))
-			inner_grid.append(Vector3(sin(angle) * in_rx, local_y, cos(angle) * in_rz + z_drape))
+			outer_grid.append(Vector3(sin(angle) * out_rx, y_wave, cos(angle) * out_rz + z_drape))
+			inner_grid.append(Vector3(sin(angle) * in_rx, y_wave, cos(angle) * in_rz + z_drape))
 
 	var mantle_sp := _strand_params(params, "mantle_", {"strand_width": 0.048, "strand_gap": 0.0,
 		"cut_mode": "symmetric", "cut_span": 0.35, "wavy": wave_amp, "wavy_freq": 2.2})
@@ -1046,42 +1123,59 @@ static func build_hair_05_wavy_lob(doll: Node3D, params: Dictionary = {}) -> voi
 	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
 	build_front_bangs(hair_root, color, 0.382, 0.016, 0.22, part_side * 3.0, 0.18, bang_sp)
 
-	# Crown-closed 3D volumetric S-wave lob canopy
+	# Continuous 3D ellipsoidal cranial dome + S-wave lob canopy guide grid
 	var cols := 60
 	var rows := 28
 	var outer_grid := PackedVector3Array()
 	var inner_grid := PackedVector3Array()
-	var crown_y := 0.616
+	var head_cy := 0.290
+	var R_x := 0.276 * 1.02 + 0.005
+	var R_y := 0.304 * 1.02 + 0.006 # apex at 0.606
+	var R_z := 0.294 * 1.02 + 0.005
 	var bottom_y := 0.34 - lob_length
+	var dome_ratio := 0.34
 
 	for r in rows + 1:
 		var t := float(r) / rows
-		var dome_t := clampf(t / 0.30, 0.0, 1.0)
-		var dome_env := sin(dome_t * PI * 0.5)
-		var lower_t := clampf((t - 0.26) / 0.74, 0.0, 1.0)
-		var y_dome := lerpf(crown_y, 0.33, 1.0 - cos(dome_t * PI * 0.5))
-		var y := (y_dome if t <= 0.30 else lerpf(0.33, bottom_y, (t - 0.30) / 0.70))
-		var s_wave := wave_depth * sin(lower_t * PI * wave_freq) * smoothstep(0.0, 0.25, lower_t)
-		var tip_flip := flip_out * pow(maxf(0.0, (lower_t - 0.60) / 0.40), 1.6)
-		var wall_thick := lerpf(0.010, 0.025, dome_env) * (1.0 - 0.35 * pow(lower_t, 2.5))
+		var local_y: float
+		var base_rx: float
+		var base_rz: float
+		var wall_thick: float
+		var z_shift := 0.0
+
+		if t <= dome_ratio:
+			var dt := t / dome_ratio
+			var phi := lerpf(0.08, 1.45, pow(dt, 0.94))
+			local_y = head_cy + R_y * cos(phi)
+			var ring := sin(phi)
+			base_rx = R_x * ring
+			base_rz = R_z * ring
+			wall_thick = lerpf(0.006, 0.022, smoothstep(0.0, 0.8, dt))
+			z_shift = -0.010 * ring
+		else:
+			var lt := (t - dome_ratio) / (1.0 - dome_ratio)
+			local_y = lerpf(head_cy + R_y * cos(1.45), bottom_y, lt)
+			var s_wave := wave_depth * sin(lt * PI * wave_freq) * smoothstep(0.0, 0.25, lt)
+			var tip_flip := flip_out * pow(maxf(0.0, (lt - 0.60) / 0.40), 1.6)
+			base_rx = R_x + 0.040 * sin(lt * PI) + s_wave + tip_flip
+			base_rz = R_z + 0.030 * sin(lt * PI) + (s_wave + tip_flip) * 0.65
+			wall_thick = lerpf(0.022, 0.014, lt)
+			z_shift = -0.010 - 0.025 * smoothstep(0.25, 0.85, lt)
 
 		for c in cols + 1:
 			var u := float(c) / cols
 			var angle := lerpf(0.60, TAU - 0.60, u)
-			var asym := 0.018 * sin(angle) * signf(-part_side) * sin(lower_t * PI)
-			var flute := 1.0 + 0.010 * cos(u * PI * 14.0 + lower_t * 2.0) * sin(lower_t * PI)
-			var min_env := _head_neck_min_radii(y, angle, true)
+			var asym := 0.016 * sin(angle) * signf(-part_side) * sin(clampf((t - 0.20) / 0.80, 0.0, 1.0) * PI)
+			var flute := 1.0 + 0.008 * cos(u * PI * 14.0 + t * 2.0) * sin(clampf((t - 0.15) / 0.85, 0.0, 1.0) * PI)
+			var min_env := _head_neck_min_radii(local_y, angle, true)
 
-			var base_rx := (0.298 + 0.042 * sin(lower_t * PI) + s_wave + tip_flip + asym) * dome_env
-			var base_rz := (0.312 + 0.032 * sin(lower_t * PI) + (s_wave + tip_flip) * 0.65) * dome_env
-			var in_rx := maxf(min_env.x * dome_env, base_rx - wall_thick)
-			var in_rz := maxf(min_env.y * dome_env, base_rz - wall_thick)
-			var out_rx := maxf(in_rx + 0.009 * dome_env, base_rx * flute)
-			var out_rz := maxf(in_rz + 0.009 * dome_env, base_rz * flute)
-			var z_shift := (-0.014 - 0.025 * smoothstep(0.25, 0.85, lower_t)) * dome_env
+			var in_rx := maxf(min_env.x, (base_rx + asym) - wall_thick)
+			var in_rz := maxf(min_env.y, base_rz - wall_thick)
+			var out_rx := maxf(in_rx + 0.006, (base_rx + asym) * flute)
+			var out_rz := maxf(in_rz + 0.006, base_rz * flute)
 
-			outer_grid.append(Vector3(sin(angle) * out_rx, y, cos(angle) * out_rz + z_shift))
-			inner_grid.append(Vector3(sin(angle) * in_rx, y, cos(angle) * in_rz + z_shift))
+			outer_grid.append(Vector3(sin(angle) * out_rx, local_y, cos(angle) * out_rz + z_shift))
+			inner_grid.append(Vector3(sin(angle) * in_rx, local_y, cos(angle) * in_rz + z_shift))
 
 	var lob_sp := _strand_params(params, "lob_", {"strand_width": 0.048, "strand_gap": 0.0,
 		"tip_taper": 0.55, "cut_mode": "symmetric", "cut_span": 0.36, "wavy": wave_depth, "wavy_freq": wave_freq})
