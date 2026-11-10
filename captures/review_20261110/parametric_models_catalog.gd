@@ -284,6 +284,17 @@ static func clear_hair_slot(doll_or_head: Node3D) -> Node3D:
 			hr.add_child(hair_root)
 	for child in hair_root.get_children():
 		child.free()
+	# Ensure base mannequin SkinnedMeshes/hair (built-in HairCap, LowBun) is hidden
+	var br := _resolve_body_rig(doll_or_head)
+	if br != null:
+		var skinned := br.get_node_or_null("SkinnedMeshes")
+		if skinned != null:
+			var sh := skinned.get_node_or_null("hair")
+			if sh != null:
+				sh.visible = false
+				for ch in sh.get_children():
+					if ch is Node3D:
+						(ch as Node3D).visible = false
 	return hair_root
 
 
@@ -298,6 +309,10 @@ static func clear_prop_slot(doll: Node3D) -> void:
 	var old := doll.get_node_or_null("CanvasToteBag")
 	if old != null:
 		old.free()
+	var cr := _resolve_clothes_root(doll)
+	if cr != null:
+		var p := cr.get_node_or_null("SlotGarment_prop")
+		if p != null: p.free()
 
 
 static func clear_garment_slot(doll: Node3D, slot_tag: String) -> void:
@@ -1584,13 +1599,17 @@ static func build_garment_07_cuban_shirt_remake(doll: Node3D, params: Dictionary
 	var collar_color: Color = params.get("collar_color", shirt_color.lightened(0.09))
 	var trim_color: Color = params.get("trim_color", shirt_color.darkened(0.22))
 	var button_color: Color = params.get("button_color", Color(0.94, 0.90, 0.82))
+	var worn_under_outer: bool = bool(params.get("worn_under_outer", false))
+	var tucked_in: bool = bool(params.get("tucked_in", false))
 	var garment_length: float = clampf(params.get("garment_length", 0.52), 0.0, 1.0)
 	var collar_spread: float = clampf(params.get("collar_spread", 1.05), 0.72, 1.45)
 	var sleeve_length: float = clampf(params.get("sleeve_length", 0.27), 0.16, 0.42)
-	var body_ease: float = clampf(params.get("body_ease", 0.028), 0.016, 0.052)
+	var body_ease: float = clampf(params.get("body_ease", 0.018 if worn_under_outer else 0.028), 0.014, 0.052)
 	var pocket_enabled: bool = params.get("pocket_enabled", true)
 
 	var hem_y := lerpf(1.36, 1.06, garment_length)
+	if tucked_in:
+		hem_y = maxf(hem_y, 1.34)
 	var v_open_bottom_y := 1.635
 
 	# Shared parametric surface evaluator for Cuban Shirt Torso so all collars, lapels, plackets & pockets shrinkwrap with 0mm gap
@@ -1598,10 +1617,10 @@ static func build_garment_07_cuban_shirt_remake(doll: Node3D, params: Dictionary
 	var eval_cuban_radii := func(y: float) -> Vector3:
 		var sl := v20_torso_slice(y)
 		var ch_sl := v20_torso_slice(1.62)
-		var boxy_b := clampf((1.62 - y) / 0.42, 0.0, 1.0) * 0.55
+		var boxy_b := clampf((1.62 - y) / 0.42, 0.0, 1.0) * (0.35 if worn_under_outer else 0.55)
 		var t_approx := clampf((y - hem_y) / maxf(0.1, 1.934 - hem_y), 0.0, 1.0)
 		var shoulder_taper := smoothstep(1.80, 1.934, y)
-		var ease_y := lerpf(body_ease + 0.008 * (1.0 - t_approx), 0.016, shoulder_taper)
+		var ease_y := lerpf(body_ease + (0.003 if worn_under_outer else 0.008) * (1.0 - t_approx), (0.013 if worn_under_outer else 0.016), shoulder_taper)
 		var rx := lerpf(float(sl["rx"]), float(ch_sl["rx"]), boxy_b) + ease_y
 		var rz := lerpf(float(sl["rz"]), float(ch_sl["rz"]), boxy_b * 0.75) + ease_y * 0.92
 		return Vector3(rx, rz, float(sl["z"]))
@@ -1916,6 +1935,8 @@ static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary
 	var accent_stripe: Color = params.get("accent_stripe", Color(0.68, 0.22, 0.24))
 	var under_shirt_color: Color = params.get("under_shirt_color", Color(0.95, 0.94, 0.90))
 	var layered_shirt: bool = bool(params.get("layered_shirt", not slot_mode))
+	var has_under_layer: bool = bool(params.get("has_under_layer", false))
+	var layer_clearance: float = (0.016 if has_under_layer else 0.0)
 	var garment_length: float = clampf(params.get("garment_length", 0.48), 0.0, 1.0)
 	var v_depth: float = clampf(params.get("v_depth", 0.27), 0.16, 0.36)
 	var shoulder_width: float = clampf(params.get("shoulder_width", 1.0), 0.82, 1.15)
@@ -1996,9 +2017,9 @@ static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary
 		var t := float(i) / rings
 		var y := lerpf(hem_y, top_y, t)
 		var sl := v20_torso_slice(y)
-		var ease := lerpf(0.022, 0.014, smoothstep(1.82, top_y, y))
+		var ease := lerpf(0.022, 0.014, smoothstep(1.82, top_y, y)) + layer_clearance
 		if y < hem_y + rib_width:
-			ease = lerpf(0.015, 0.022, (y - hem_y) / maxf(0.01, rib_width))
+			ease = lerpf(0.015, 0.022, (y - hem_y) / maxf(0.01, rib_width)) + layer_clearance
 		var rx := float(sl["rx"]) + ease
 		var rz := float(sl["rz"]) + ease * 0.95
 		var z_off := float(sl["z"])
@@ -2006,7 +2027,7 @@ static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary
 		var max_x := 99.0
 		if y > 1.54:
 			var arm_t := clampf((y - 1.54) / (1.86 - 1.54), 0.0, 1.0)
-			max_x = lerpf(0.205, 0.140 * shoulder_width, sin(arm_t * PI * 0.5))
+			max_x = lerpf(0.205 + layer_clearance * 0.8, 0.140 * shoulder_width + layer_clearance * 0.5, sin(arm_t * PI * 0.5))
 
 		for s in sides + 1:
 			var u := float(s) / sides
@@ -2042,7 +2063,7 @@ static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary
 	# 2. Varsity Striped V-Neck (Front) + Round-Neck (Back) Ribbing Band — Continuous around the entire neck!
 	var eval_vest_front_z := func(px: float, py: float) -> float:
 		var sl := v20_torso_slice(py)
-		var ease_v := lerpf(0.022, 0.014, smoothstep(1.82, top_y, py))
+		var ease_v := lerpf(0.022, 0.014, smoothstep(1.82, top_y, py)) + layer_clearance
 		var rx_v := float(sl["rx"]) + ease_v
 		var rz_v := float(sl["rz"]) + ease_v * 0.95
 		var nx := clampf(px / maxf(0.05, rx_v + 0.015), -0.96, 0.96)
@@ -2123,18 +2144,23 @@ static func build_garment_10_sailor_blouse(doll: Node3D, params: Dictionary = {}
 	var collar_color: Color = params.get("collar_color", Color(0.16, 0.24, 0.38))
 	var stripe_color: Color = params.get("stripe_color", Color(0.96, 0.95, 0.92))
 	var scarf_color: Color = params.get("scarf_color", Color(0.76, 0.22, 0.24))
+	var worn_under_outer: bool = bool(params.get("worn_under_outer", false))
+	var tucked_in: bool = bool(params.get("tucked_in", false))
+	var base_ease: float = (0.016 if worn_under_outer else 0.022)
 	var garment_length: float = clampf(params.get("garment_length", 0.46), 0.0, 1.0)
 	var collar_drop: float = clampf(params.get("collar_drop", 0.22), 0.14, 0.32)
 	var sleeve_length: float = clampf(params.get("sleeve_length", 0.26), 0.16, 0.44)
 	var tie_length: float = clampf(params.get("tie_length", 0.18), 0.10, 0.28)
 
 	var hem_y := lerpf(1.36, 1.08, garment_length)
+	if tucked_in:
+		hem_y = maxf(hem_y, 1.34)
 	var top_y := 1.934
 	var v_apex_y := 1.615
 
 	var eval_sailor_front_z := func(px: float, py: float) -> float:
 		var sl := v20_torso_slice(py)
-		var ease_s := lerpf(0.022, 0.015, smoothstep(1.82, top_y, py))
+		var ease_s := lerpf(base_ease, 0.014, smoothstep(1.82, top_y, py))
 		var t_rx := float(sl["rx"]) + ease_s
 		var t_rz := float(sl["rz"]) + ease_s * 0.92
 		var nx := clampf(px / maxf(0.05, t_rx + 0.028), -0.96, 0.96)
@@ -2142,7 +2168,7 @@ static func build_garment_10_sailor_blouse(doll: Node3D, params: Dictionary = {}
 
 	var eval_sailor_back_z := func(px: float, py: float) -> float:
 		var sl := v20_torso_slice(py)
-		var ease_s := lerpf(0.022, 0.015, smoothstep(1.82, top_y, py))
+		var ease_s := lerpf(base_ease, 0.014, smoothstep(1.82, top_y, py))
 		var t_rx := float(sl["rx"]) + ease_s
 		var t_rz := float(sl["rz"]) + ease_s * 0.92
 		var nx := clampf(px / maxf(0.05, t_rx + 0.045), -0.96, 0.96)
@@ -2157,7 +2183,7 @@ static func build_garment_10_sailor_blouse(doll: Node3D, params: Dictionary = {}
 		var t := float(i) / rings
 		var y := lerpf(hem_y, top_y, t)
 		var sl := v20_torso_slice(y)
-		var ease_s := lerpf(0.022, 0.015, smoothstep(1.82, top_y, y))
+		var ease_s := lerpf(base_ease, 0.014, smoothstep(1.82, top_y, y))
 		var rx := float(sl["rx"]) + ease_s
 		var rz := float(sl["rz"]) + ease_s * 0.92
 		var v_open_ang := 0.0
@@ -2319,10 +2345,12 @@ static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}
 	var rib_color: Color = params.get("rib_color", cardi_color.darkened(0.12))
 	var inner_color: Color = params.get("inner_color", Color(0.95, 0.93, 0.88))
 	var button_color: Color = params.get("button_color", Color(0.36, 0.24, 0.16))
+	var has_under_layer: bool = bool(params.get("has_under_layer", false))
+	var layer_clearance: float = (0.016 if has_under_layer else 0.0)
 	var garment_length: float = clampf(params.get("garment_length", 0.58), 0.0, 1.0)
 	var v_drop: float = params.get("v_drop", 0.26)
 	var sleeve_length: float = params.get("sleeve_length", 0.44)
-	var body_ease: float = params.get("body_ease", 0.030)
+	var body_ease: float = params.get("body_ease", 0.030) + layer_clearance
 	var pocket_enabled: bool = bool(params.get("pocket_enabled", true))
 	var pocket_scale: float = params.get("pocket_scale", 1.0)
 	var has_inner: bool = bool(params.get("has_inner", not slot_mode))
@@ -2362,7 +2390,7 @@ static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}
 		var sl := v20_torso_slice(py)
 		var ch_sl := v20_torso_slice(1.60)
 		var slouch := clampf((1.60 - py) / 0.45, 0.0, 1.0) * 0.45
-		var ease_c := lerpf(body_ease, 0.016, smoothstep(1.82, top_y, py))
+		var ease_c := lerpf(body_ease, 0.016 + layer_clearance, smoothstep(1.82, top_y, py))
 		var rx := lerpf(float(sl["rx"]), float(ch_sl["rx"]), slouch) + ease_c
 		var rz := lerpf(float(sl["rz"]), float(ch_sl["rz"]), slouch * 0.75) + ease_c * 0.92
 		var nx := clampf(px / maxf(0.04, rx + 0.015), -0.97, 0.97)
@@ -2495,6 +2523,8 @@ static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {
 	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
+	var has_under_layer: bool = bool(params.get("has_under_layer", false))
+	var layer_clearance: float = (0.016 if has_under_layer else 0.0)
 	var dress_color: Color = params.get("color", Color(0.28, 0.36, 0.46))
 	var shirt_color: Color = params.get("shirt_color", Color(0.96, 0.94, 0.90))
 	var button_color: Color = params.get("button_color", Color(0.82, 0.68, 0.42))
@@ -2541,8 +2571,8 @@ static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {
 	var s_grid := PackedVector3Array()
 	var s_inds := PackedInt32Array()
 	var w_sl := v20_torso_slice(waist_y)
-	var w_rx: float = float(w_sl["rx"]) + 0.024
-	var w_rz: float = float(w_sl["rz"]) + 0.024
+	var w_rx: float = float(w_sl["rx"]) + 0.024 + layer_clearance
+	var w_rz: float = float(w_sl["rz"]) + 0.024 + layer_clearance
 	for i in s_rings + 1:
 		var t := float(i) / s_rings
 		var y := lerpf(skirt_hem_y, waist_y, t)
@@ -2570,8 +2600,8 @@ static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {
 	# Helper to evaluate InnerBlouseTorso surface Z at (px, py)
 	var eval_blouse_z := func(px: float, py: float, is_front: bool) -> float:
 		var sl := v20_torso_slice(py)
-		var rx_b := float(sl["rx"]) + 0.014
-		var rz_b := float(sl["rz"]) + 0.014
+		var rx_b := float(sl["rx"]) + 0.014 + layer_clearance
+		var rz_b := float(sl["rz"]) + 0.014 + layer_clearance
 		var nx := clampf(px / maxf(0.04, rx_b + 0.015), -0.97, 0.97)
 		var dz := rz_b * sqrt(maxf(0.04, 1.0 - nx * nx))
 		return float(sl["z"]) + (dz if is_front else -dz)
@@ -2651,12 +2681,17 @@ static func build_garment_13_square_neck_top(doll: Node3D, params: Dictionary = 
 	var top_color: Color = params.get("color", Color(0.86, 0.74, 0.84))
 	var trim_color: Color = params.get("trim_color", Color(0.96, 0.92, 0.95))
 	var garment_length: float = clampf(params.get("garment_length", 0.45), 0.0, 1.0)
+	var worn_under_outer: bool = bool(params.get("worn_under_outer", false))
+	var tucked_in: bool = bool(params.get("tucked_in", false))
+	var base_ease: float = (0.013 if worn_under_outer else 0.018)
 	var neck_width: float = params.get("neck_width", 0.102)
 	var neck_depth: float = params.get("neck_depth", 0.165)
 	var puff_size: float = params.get("puff_size", 0.046)
-	var peplum_flare: float = params.get("peplum_flare", 0.068)
+	var peplum_flare: float = (0.0 if worn_under_outer else params.get("peplum_flare", 0.068))
 
 	var hem_y := lerpf(1.36, 1.12, garment_length)
+	if tucked_in:
+		hem_y = maxf(hem_y, 1.34)
 	var top_y := 1.926 # Covers the sloping shoulders up to the inner shoulder strap crest!
 	var sq_bottom_y := top_y - neck_depth - 0.025
 	var sq_back_y := top_y - neck_depth * 0.42
@@ -2672,13 +2707,13 @@ static func build_garment_13_square_neck_top(doll: Node3D, params: Dictionary = 
 		var t := float(i) / rings
 		var y := lerpf(hem_y, top_y, t)
 		var sl := v20_torso_slice(y)
-		var rx := float(sl["rx"]) + 0.018
-		var rz := float(sl["rz"]) + 0.018
+		var rx := float(sl["rx"]) + base_ease
+		var rz := float(sl["rz"]) + base_ease
 		if y < waist_y:
 			var pt := clampf((waist_y - y) / maxf(0.04, waist_y - hem_y), 0.0, 1.0)
 			var flare := peplum_flare * pow(pt, 0.9)
-			rx = maxf(rx, float(w_sl["rx"]) + 0.018 + flare)
-			rz = maxf(rz, float(w_sl["rz"]) + 0.018 + flare * 0.85)
+			rx = maxf(rx, float(w_sl["rx"]) + base_ease + flare)
+			rz = maxf(rz, float(w_sl["rz"]) + base_ease + flare * 0.85)
 		for s in sides + 1:
 			var a := -PI * 0.5 + TAU * float(s) / sides
 			var ca := cos(a)
@@ -3649,6 +3684,9 @@ static func build_prop_19_canvas_tote_bag(parent: Node3D, params: Dictionary = {
 	var bag_root := Node3D.new()
 	bag_root.name = params.get("node_name", "CanvasToteBag")
 	parent.add_child(bag_root)
+	if parent != null and parent.name != "PropStage":
+		# Suspend comfortably at mannequin's side/hand rather than sitting on floor
+		bag_root.position = Vector3(0.30, 0.38, 0.04)
 
 	var canvas_color: Color = params.get("color", Color(0.93, 0.89, 0.81)) # Natural unbleached ecru cotton canvas
 	var strap_color: Color = params.get("strap_color", Color(0.24, 0.32, 0.28)) # Forest green / navy cotton webbing

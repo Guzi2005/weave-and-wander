@@ -23,6 +23,9 @@ var target_y: float = 1.32
 var cam_size: float = 2.85
 var _dragging_left := false
 var _dragging_right := false
+var _dragging_middle := false
+var smart_layering_clearance := true
+var tucked_in_enabled := true
 
 # Tab selection: 0 = Garment Study, 1 = Modular Slot Layering & Catalog Review
 var current_tab: int = 1
@@ -147,13 +150,14 @@ const FIGURINE_OPTIONS := [
 
 
 func _ready() -> void:
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	var screen_size := DisplayServer.screen_get_size()
-	var win_size := Vector2i(1420, 920)
-	DisplayServer.window_set_size(win_size)
-	DisplayServer.window_set_position(Vector2i(maxi(20, (screen_size.x - win_size.x) / 2), maxi(20, (screen_size.y - win_size.y) / 2)))
-	DisplayServer.window_set_title("Weave & Wander · 交互调试台 (Garment Lab · 模块化槽位叠穿 & 物理动力学)")
-	DisplayServer.window_move_to_foreground()
+	if DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		var screen_size := DisplayServer.screen_get_size()
+		var win_size := Vector2i(1420, 920)
+		DisplayServer.window_set_size(win_size)
+		DisplayServer.window_set_position(Vector2i(maxi(20, (screen_size.x - win_size.x) / 2), maxi(20, (screen_size.y - win_size.y) / 2)))
+		DisplayServer.window_set_title("Weave & Wander · 交互调试台 (Garment Lab · 模块化槽位叠穿 & 物理动力学)")
+		DisplayServer.window_move_to_foreground()
 
 	var background := ColorRect.new()
 	background.color = Color("ecf0ef")
@@ -378,6 +382,23 @@ func _reset_doll_to_base_mannequin() -> void:
 		var torso_in_skinned := br.get_node_or_null("SkinnedMeshes/torso/MannequinTorso")
 		if torso_in_skinned != null: torso_in_skinned.visible = true
 
+		# CRITICAL FIX: Hide base mannequin SkinnedMeshes/hair (built-in HairCap, LowBun)
+		# so the bald mannequin cranium is completely smooth and bare!
+		var skinned := br.get_node_or_null("SkinnedMeshes")
+		if skinned != null:
+			var sh := skinned.get_node_or_null("hair")
+			if sh != null:
+				sh.visible = false
+				for ch in sh.get_children():
+					if ch is Node3D:
+						(ch as Node3D).visible = false
+
+	# Hide all 2D paper doll gameplay billboards and ground rings that misplace at character feet
+	for child_name in ["GroundContact", "SelectedGlow", "TaskBadge", "SelectionMarker", "CardboardBase", "FloorSlot"]:
+		var node := doll.get_node_or_null(child_name)
+		if node != null:
+			node.visible = false
+
 	# Restore clean bare arms
 	for arm_name in ["ArmLeft", "ArmRight"]:
 		var arm := br.get_node_or_null(arm_name)
@@ -439,6 +460,10 @@ func _rebuild_modular_mannequin() -> void:
 	# 1. Reset doll to pristine bare mannequin
 	_reset_doll_to_base_mannequin()
 
+	var has_top: bool = (str(active_slots.get("top", "none")) != "none")
+	var has_outer: bool = (str(active_slots.get("outer", "none")) != "none")
+	var has_bottom: bool = (str(active_slots.get("bottom", "none")) != "none")
+
 	# 2. Build Hair Slot
 	var hair_id: String = active_slots.get("hair", "none")
 	if hair_id != "none":
@@ -457,6 +482,8 @@ func _rebuild_modular_mannequin() -> void:
 				var tp: Dictionary = slot_params.get("top", {}).duplicate()
 				tp["slot_mode"] = true
 				tp["slot_tag"] = "top"
+				tp["worn_under_outer"] = (has_outer and smart_layering_clearance)
+				tp["tucked_in"] = (has_bottom and tucked_in_enabled)
 				tp["color"] = current_garment_palette["main"]
 				tp["collar_color"] = current_garment_palette["trim"]
 				tp["trim_color"] = current_garment_palette["trim"]
@@ -472,6 +499,7 @@ func _rebuild_modular_mannequin() -> void:
 				var op: Dictionary = slot_params.get("outer", {}).duplicate()
 				op["slot_mode"] = true
 				op["slot_tag"] = "outer"
+				op["has_under_layer"] = (has_top and smart_layering_clearance)
 				op["color"] = current_garment_palette.get("outer_main", current_garment_palette["main"].darkened(0.18))
 				op["stripe_color"] = current_garment_palette["trim"]
 				op["rib_color"] = current_garment_palette["trim"]
@@ -485,6 +513,7 @@ func _rebuild_modular_mannequin() -> void:
 		var bp: Dictionary = slot_params.get("bottom", {}).duplicate()
 		bp["slot_mode"] = true
 		bp["slot_tag"] = "bottom"
+		bp["tucked_in"] = (has_top and tucked_in_enabled)
 		bp["color"] = current_garment_palette.get("bottom_main", current_garment_palette["main"].darkened(0.08))
 		bp["belt_color"] = current_garment_palette["detail"]
 		Catalog.build_garment_14_pleated_shorts(doll, bp)
@@ -598,30 +627,103 @@ func _recursively_set_pigment(node: Node, color: Color) -> void:
 # ============================================================================
 
 func _setup_modular_catalog_ui(parent: Control) -> void:
-	# SECTION 1: MOTION & DYNAMICS
-	_build_section_header(parent, "① 动作与物理动力学 (Motion & Physics)")
+	# SECTION 1: INTERACTION & DYNAMICS
+	_build_section_header(parent, "① 🎮 交互控制与物理动力学 (Interaction & Physics)")
 	var motion_box := VBoxContainer.new()
 	motion_box.add_theme_constant_override("separation", 6)
 	parent.add_child(motion_box)
 
-	var motion_lbl := Label.new()
-	motion_lbl.text = "预设动态模式:"
-	motion_lbl.add_theme_color_override("font_color", Color("344a49"))
-	motion_box.add_child(motion_lbl)
+	# Interaction Tips Banner
+	var tip_panel := PanelContainer.new()
+	var tip_style := StyleBoxFlat.new()
+	tip_style.bg_color = Color(0.92, 0.96, 0.94)
+	tip_style.set_corner_radius_all(4)
+	tip_style.content_margin_left = 6
+	tip_style.content_margin_right = 6
+	tip_style.content_margin_top = 4
+	tip_style.content_margin_bottom = 4
+	tip_panel.add_theme_stylebox_override("panel", tip_style)
+	motion_box.add_child(tip_panel)
+
+	var tip_lbl := Label.new()
+	tip_lbl.text = "💡 交互:【左键拖拽】旋转素体驱动角速度与惯性\n【右键拖拽】环视相机视角；【滚轮】缩放视距"
+	tip_lbl.add_theme_color_override("font_color", Color("1b4e44"))
+	tip_lbl.add_theme_font_size_override("font_size", 11)
+	tip_panel.add_child(tip_lbl)
+
+	# Interactive Angular Velocity Controls & Impulse Buttons
+	var omega_row := VBoxContainer.new()
+	omega_row.add_theme_constant_override("separation", 2)
+	motion_box.add_child(omega_row)
+
+	var o_header := HBoxContainer.new()
+	o_header.add_theme_constant_override("separation", 4)
+	omega_row.add_child(o_header)
+
+	omega_label = Label.new()
+	omega_label.text = "实时角速度 ω: +0.00 rad/s"
+	omega_label.add_theme_color_override("font_color", Color("1b443c"))
+	omega_label.add_theme_font_size_override("font_size", 12)
+	omega_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	o_header.add_child(omega_label)
+
+	var btn_neg_omega := Button.new()
+	btn_neg_omega.text = "⏪ -5"
+	btn_neg_omega.tooltip_text = "反向角速度冲量 (-5.0 rad/s)"
+	btn_neg_omega.pressed.connect(func() -> void:
+		manual_omega = -5.0
+		if is_instance_valid(omega_slider): omega_slider.set_value_no_signal(-5.0)
+		omega_label.text = "实时角速度 ω: -5.00 rad/s")
+	o_header.add_child(btn_neg_omega)
+
+	var btn_zero_omega := Button.new()
+	btn_zero_omega.text = "归零 (0)"
+	btn_zero_omega.tooltip_text = "角速度立即归零"
+	btn_zero_omega.pressed.connect(func() -> void:
+		manual_omega = 0.0
+		if is_instance_valid(omega_slider): omega_slider.set_value_no_signal(0.0)
+		omega_label.text = "实时角速度 ω: +0.00 rad/s")
+	o_header.add_child(btn_zero_omega)
+
+	var btn_pos_omega := Button.new()
+	btn_pos_omega.text = "⏩ +5"
+	btn_pos_omega.tooltip_text = "正向角速度冲量 (+5.0 rad/s)"
+	btn_pos_omega.pressed.connect(func() -> void:
+		manual_omega = 5.0
+		if is_instance_valid(omega_slider): omega_slider.set_value_no_signal(5.0)
+		omega_label.text = "实时角速度 ω: +5.00 rad/s")
+	o_header.add_child(btn_pos_omega)
+
+	omega_slider = HSlider.new()
+	omega_slider.min_value = -12.0
+	omega_slider.max_value = 12.0
+	omega_slider.step = 0.2
+	omega_slider.value = 0.0
+	omega_row.add_child(omega_slider)
+	omega_slider.value_changed.connect(func(val: float) -> void:
+		manual_omega = val
+		omega_label.text = "实时角速度 ω: %+.2f rad/s" % val)
+
+	# Motion Modes Grid
+	var m_lbl := Label.new()
+	m_lbl.text = "预设动态模式测试:"
+	m_lbl.add_theme_color_override("font_color", Color("344a49"))
+	m_lbl.add_theme_font_size_override("font_size", 11)
+	motion_box.add_child(m_lbl)
 
 	var m_grid := GridContainer.new()
 	m_grid.columns = 3
-	m_grid.add_theme_constant_override("h_separation", 6)
+	m_grid.add_theme_constant_override("h_separation", 4)
 	m_grid.add_theme_constant_override("v_separation", 4)
 	motion_box.add_child(m_grid)
 
 	var motion_modes := [
-		{"name": "静止 (Rest)", "mode": 0},
-		{"name": "待机呼吸 (Idle)", "mode": 1},
-		{"name": "自转离心 (Spin)", "mode": 2},
-		{"name": "急转摆动 (Snap)", "mode": 3},
-		{"name": "走步摇摆 (Walk)", "mode": 4},
-		{"name": "起停冲击 (Jolt)", "mode": 5}
+		{"name": "静止素体", "mode": 0},
+		{"name": "待机呼吸", "mode": 1},
+		{"name": "自转离心", "mode": 2},
+		{"name": "急转摆动", "mode": 3},
+		{"name": "走步摇摆", "mode": 4},
+		{"name": "起停冲击", "mode": 5}
 	]
 	for mm in motion_modes:
 		var b := Button.new()
@@ -635,41 +737,9 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 				if is_instance_valid(omega_slider): omega_slider.value = 0.0)
 		m_grid.add_child(b)
 
-	# Interactive Angular Velocity Slider
-	var omega_row := VBoxContainer.new()
-	omega_row.add_theme_constant_override("separation", 2)
-	motion_box.add_child(omega_row)
-
-	var o_header := HBoxContainer.new()
-	omega_row.add_child(o_header)
-
-	omega_label = Label.new()
-	omega_label.text = "实时角速度 ω: 0.0 rad/s (支持Shift+左键拖拽旋转)"
-	omega_label.add_theme_color_override("font_color", Color("344a49"))
-	omega_label.add_theme_font_size_override("font_size", 12)
-	omega_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	o_header.add_child(omega_label)
-
-	var btn_zero_omega := Button.new()
-	btn_zero_omega.text = "归零"
-	btn_zero_omega.pressed.connect(func() -> void:
-		manual_omega = 0.0
-		omega_slider.value = 0.0
-		omega_label.text = "实时角速度 ω: 0.0 rad/s")
-	o_header.add_child(btn_zero_omega)
-
-	omega_slider = HSlider.new()
-	omega_slider.min_value = -10.0
-	omega_slider.max_value = 10.0
-	omega_slider.step = 0.2
-	omega_slider.value = 0.0
-	omega_row.add_child(omega_slider)
-	omega_slider.value_changed.connect(func(val: float) -> void:
-		manual_omega = val
-		omega_label.text = "实时角速度 ω: %.1f rad/s" % val)
-
 	# Secondary Motion & Hair Toggles
 	var toggle_row := HBoxContainer.new()
+	toggle_row.add_theme_constant_override("separation", 8)
 	motion_box.add_child(toggle_row)
 
 	var cb_cloth := CheckBox.new()
@@ -689,8 +759,94 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 
 	parent.add_child(HSeparator.new())
 
-	# SECTION 2: MANNEQUIN & COLORS
-	_build_section_header(parent, "② 模特素体与色彩定制 (Mannequin & Colors)")
+	# SECTION 2: MODULAR SLOT LAYERING
+	_build_section_header(parent, "② 👗 模块化叠穿系统 (Modular Outfits & Layering)")
+	var layer_box := VBoxContainer.new()
+	layer_box.add_theme_constant_override("separation", 6)
+	parent.add_child(layer_box)
+
+	var preset_lbl := Label.new()
+	preset_lbl.text = "快速搭配预设方案:"
+	preset_lbl.add_theme_color_override("font_color", Color("344a49"))
+	preset_lbl.add_theme_font_size_override("font_size", 11)
+	layer_box.add_child(preset_lbl)
+
+	# Quick Outfit Layering Presets Bar
+	var preset_bar := GridContainer.new()
+	preset_bar.columns = 2
+	preset_bar.add_theme_constant_override("h_separation", 4)
+	preset_bar.add_theme_constant_override("v_separation", 4)
+	layer_box.add_child(preset_bar)
+
+	var btn_bare := Button.new()
+	btn_bare.text = "素体 (Bare)"
+	btn_bare.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_bare.pressed.connect(func() -> void:
+		_set_active_slots("none", "none", "none", "none", "none", "none", "none"))
+	preset_bar.add_child(btn_bare)
+
+	var btn_preppy := Button.new()
+	btn_preppy.text = "学院叠穿"
+	btn_preppy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_preppy.pressed.connect(func() -> void:
+		_set_active_slots("01", "10", "09", "14", "none", "none", "none"))
+	preset_bar.add_child(btn_preppy)
+
+	var btn_cuban := Button.new()
+	btn_cuban.text = "度假古巴领"
+	btn_cuban.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_cuban.pressed.connect(func() -> void:
+		_set_active_slots("05", "07", "none", "14", "none", "none", "none"))
+	preset_bar.add_child(btn_cuban)
+
+	var btn_pinafore := Button.new()
+	btn_pinafore.text = "背心工装裙"
+	btn_pinafore.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_pinafore.pressed.connect(func() -> void:
+		_set_active_slots("04", "07", "12", "none", "16", "none", "none"))
+	preset_bar.add_child(btn_pinafore)
+
+	# Layering Clearance & Tuck-in Controls
+	var layer_opts_row := HBoxContainer.new()
+	layer_opts_row.add_theme_constant_override("separation", 8)
+	layer_box.add_child(layer_opts_row)
+
+	var cb_layer := CheckBox.new()
+	cb_layer.text = "智能防穿模放量"
+	cb_layer.tooltip_text = "内搭自动收身，外套自动外扩放量，避免内外层穿模与Z-fighting"
+	cb_layer.button_pressed = smart_layering_clearance
+	cb_layer.toggled.connect(func(val: bool) -> void:
+		smart_layering_clearance = val
+		_rebuild_modular_mannequin())
+	layer_opts_row.add_child(cb_layer)
+
+	var cb_tuck := CheckBox.new()
+	cb_tuck.text = "上装塞入下装 (Tucked In)"
+	cb_tuck.tooltip_text = "上装下摆收纳于短裤腰带内部，不发生错位穿插"
+	cb_tuck.button_pressed = tucked_in_enabled
+	cb_tuck.toggled.connect(func(val: bool) -> void:
+		tucked_in_enabled = val
+		_rebuild_modular_mannequin())
+	layer_opts_row.add_child(cb_tuck)
+
+	# Slot Pickers Grid (Single column so each OptionButton is full-width and never clipped)
+	var s_grid := GridContainer.new()
+	s_grid.columns = 1
+	s_grid.add_theme_constant_override("v_separation", 6)
+	layer_box.add_child(s_grid)
+
+	_add_slot_selector(s_grid, "发型槽 (Hair Slot):", "hair", HAIR_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "上装/内搭 (Top / Inner):", "top", TOP_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "外搭/叠穿 (Outer / Layer):", "outer", OUTER_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "下装槽 (Bottom / Pants):", "bottom", BOTTOM_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "头饰槽 (Headwear):", "hat", HAT_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "配饰槽 (Prop / Bag):", "prop", PROP_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "独立摆件 (Craft Figurine):", "figurine", FIGURINE_OPTIONS)
+
+	parent.add_child(HSeparator.new())
+
+	# SECTION 3: MANNEQUIN & COLORS
+	_build_section_header(parent, "③ 🎨 模特素体与色彩定制 (Mannequin & Colors)")
 	var color_box := VBoxContainer.new()
 	color_box.add_theme_constant_override("separation", 8)
 	parent.add_child(color_box)
@@ -879,61 +1035,6 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	cp_g_detail.color_changed.connect(func(c: Color) -> void:
 		current_garment_palette["detail"] = c
 		_rebuild_modular_mannequin())
-
-	parent.add_child(HSeparator.new())
-
-	# SECTION 3: MODULAR SLOT LAYERING
-	_build_section_header(parent, "③ 模块化槽位叠穿 (Modular Slot Layering)")
-	var layer_box := VBoxContainer.new()
-	layer_box.add_theme_constant_override("separation", 6)
-	parent.add_child(layer_box)
-
-	# Quick Outfit Layering Presets Bar
-	var preset_bar := HBoxContainer.new()
-	preset_bar.add_theme_constant_override("separation", 4)
-	layer_box.add_child(preset_bar)
-
-	var btn_bare := Button.new()
-	btn_bare.text = "素体 (Bare)"
-	btn_bare.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_bare.pressed.connect(func() -> void:
-		_set_active_slots("none", "none", "none", "none", "none", "none", "none"))
-	preset_bar.add_child(btn_bare)
-
-	var btn_preppy := Button.new()
-	btn_preppy.text = "学院叠穿"
-	btn_preppy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_preppy.pressed.connect(func() -> void:
-		_set_active_slots("01", "10", "09", "14", "none", "none", "none"))
-	preset_bar.add_child(btn_preppy)
-
-	var btn_cuban := Button.new()
-	btn_cuban.text = "度假古巴领"
-	btn_cuban.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_cuban.pressed.connect(func() -> void:
-		_set_active_slots("05", "07", "none", "14", "none", "19", "none"))
-	preset_bar.add_child(btn_cuban)
-
-	var btn_pinafore := Button.new()
-	btn_pinafore.text = "背心工装裙"
-	btn_pinafore.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_pinafore.pressed.connect(func() -> void:
-		_set_active_slots("04", "07", "12", "none", "16", "none", "none"))
-	preset_bar.add_child(btn_pinafore)
-
-	# Slot Pickers Grid (Single column so each OptionButton is full-width and never clipped)
-	var s_grid := GridContainer.new()
-	s_grid.columns = 1
-	s_grid.add_theme_constant_override("v_separation", 6)
-	layer_box.add_child(s_grid)
-
-	_add_slot_selector(s_grid, "发型槽 (Hair Slot):", "hair", HAIR_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "上装/内搭 (Top / Inner):", "top", TOP_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "外搭/叠穿 (Outer / Layer):", "outer", OUTER_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "下装槽 (Bottom / Pants):", "bottom", BOTTOM_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "头饰槽 (Headwear):", "hat", HAT_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "配饰槽 (Prop / Bag):", "prop", PROP_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "独立摆件 (Craft Figurine):", "figurine", FIGURINE_OPTIONS)
 
 	parent.add_child(HSeparator.new())
 
@@ -1411,15 +1512,17 @@ func _option(parent: Control, labels: Array) -> OptionButton:
 
 
 # ============================================================================
-# 3D ORBIT, PAN & INTERACTIVE DIRECT SPIN (SHIFT + DRAG)
+# 3D ORBIT, PAN & DIRECT MOUSE SPIN WITH ANGULAR VELOCITY PHYSICS
 # ============================================================================
 
 func _orbit_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging_left = event.pressed
-		elif event.button_index == MOUSE_BUTTON_RIGHT or event.button_index == MOUSE_BUTTON_MIDDLE:
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			_dragging_right = event.pressed
+		elif event.button_index == MOUSE_BUTTON_MIDDLE:
+			_dragging_middle = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			cam_size = clampf(cam_size - 0.18, 0.70, 5.2)
 			camera.size = cam_size
@@ -1431,20 +1534,25 @@ func _orbit_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseMotion:
 		if _dragging_left:
+			# Left mouse drag directly rotates the model and derives real-time angular velocity ω
+			var spin_d: float = -event.relative.x * 0.022
+			yaw += spin_d
+			var inst_omega: float = clampf(-event.relative.x * 0.35, -12.0, 12.0)
+			manual_omega = lerpf(manual_omega, inst_omega, 0.6)
+			if is_instance_valid(omega_slider):
+				omega_slider.set_value_no_signal(manual_omega)
+			if is_instance_valid(omega_label):
+				omega_label.text = "实时角速度 ω: %+.2f rad/s (鼠标左键直接旋转驱动)" % manual_omega
+		elif _dragging_right:
 			if Input.is_key_pressed(KEY_SHIFT):
-				# Shift + Drag directly spins the model around Y, driving physics!
-				var spin_impulse: float = -event.relative.x * 0.05
-				yaw += spin_impulse
-				manual_omega = clampf(spin_impulse / 0.016, -10.0, 10.0)
-				if is_instance_valid(omega_slider):
-					omega_slider.set_value_no_signal(manual_omega)
-				if is_instance_valid(omega_label):
-					omega_label.text = "实时角速度 ω: %.1f rad/s (Shift拖拽驱动)" % manual_omega
+				# Shift + Right drag pans camera vertically
+				target_y = clampf(target_y + event.relative.y * 0.003 * cam_size, 0.4, 2.6)
 			else:
+				# Right drag orbits camera view
 				orbit -= event.relative.x * 0.008
 				pitch = clampf(pitch + event.relative.y * 0.006, -0.45, 1.25)
-				_update_camera()
-		elif _dragging_right:
+			_update_camera()
+		elif _dragging_middle:
 			target_y = clampf(target_y + event.relative.y * 0.003 * cam_size, 0.4, 2.6)
 			_update_camera()
 
@@ -1521,11 +1629,11 @@ func _process(delta: float) -> void:
 
 	# Decay manual omega gently towards zero if mouse released
 	if not _dragging_left and absf(manual_omega) > 0.01 and motion_mode == 0:
-		manual_omega = lerpf(manual_omega, 0.0, delta * 3.5)
+		manual_omega = lerpf(manual_omega, 0.0, delta * 3.0)
 		if is_instance_valid(omega_slider):
 			omega_slider.set_value_no_signal(manual_omega)
 		if is_instance_valid(omega_label):
-			omega_label.text = "实时角速度 ω: %.1f rad/s" % manual_omega
+			omega_label.text = "实时角速度 ω: %+.2f rad/s" % manual_omega
 
 	# Apply rotation to root body_rig
 	yaw += current_omega * delta
@@ -1544,16 +1652,16 @@ func _update_hair_secondary_physics(delta: float, omega: float, walk: float) -> 
 	if doll.hair_root == null or dynamic_hair_sway_scale <= 0.01:
 		return
 
-	var target_lag := -clampf(omega * 0.035 * dynamic_hair_sway_scale, -0.65, 0.65)
-	var target_flare := clampf(omega * omega * 0.0075 * dynamic_hair_sway_scale, 0.0, 0.45)
+	var target_lag := -clampf(omega * 0.045 * dynamic_hair_sway_scale, -0.75, 0.75)
+	var target_flare := clampf(omega * omega * 0.009 * dynamic_hair_sway_scale, 0.0, 0.55)
 	var bounce := sin(phase * 12.0) * 0.012 * walk * dynamic_hair_sway_scale
 
-	# React to ponytails, twin tails, and long mantles (NEVER rotate Canopy skull cap!)
+	# React to ponytails, twin tails, braids, wavy lob locks and long mantles (NEVER rotate Canopy skull cap!)
 	for child in doll.hair_root.get_children():
 		var c_name := str(child.name)
-		if (c_name.contains("Ponytail") or c_name.contains("TwinPigtail") or c_name.contains("Braid")) and not c_name.contains("Canopy"):
+		if (c_name.contains("Ponytail") or c_name.contains("TwinPigtail") or c_name.contains("Braid") or c_name.contains("Lob") or c_name.contains("Lock") or c_name.contains("Strand")) and not c_name.contains("Canopy") and not c_name.contains("Cap"):
 			var n := child as Node3D
 			if n != null:
-				n.rotation.z = lerpf(n.rotation.z, target_lag, delta * 10.0)
-				n.rotation.x = lerpf(n.rotation.x, target_flare, delta * 10.0)
+				n.rotation.z = lerpf(n.rotation.z, target_lag, delta * 12.0)
+				n.rotation.x = lerpf(n.rotation.x, target_flare, delta * 12.0)
 				n.position.y = lerpf(n.position.y, bounce, delta * 8.0)
