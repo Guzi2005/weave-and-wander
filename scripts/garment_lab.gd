@@ -19,8 +19,8 @@ var manual_omega := 0.0
 var orbit: float = 0.35
 var pitch: float = 0.12
 var cam_distance: float = 7.0
-var target_y: float = 1.35
-var cam_size: float = 3.3
+var target_y: float = 1.32
+var cam_size: float = 2.85
 var _dragging_left := false
 var _dragging_right := false
 
@@ -209,6 +209,7 @@ func _ready() -> void:
 	doll = Doll.new()
 	stage.add_child(doll)
 	doll.process_mode = Node.PROCESS_MODE_INHERIT
+	doll._build_appearance()
 
 	# Camera setup
 	camera = Camera3D.new()
@@ -217,16 +218,25 @@ func _ready() -> void:
 	camera.size = cam_size
 	camera.current = true
 
-	# Right Controls Panel
+	# Right Controls Panel (Enhanced readability & no occlusion)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size.x = 400
+	scroll.custom_minimum_size.x = 450
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(scroll)
 
+	var margin_box := MarginContainer.new()
+	margin_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin_box.add_theme_constant_override("margin_top", 12)
+	margin_box.add_theme_constant_override("margin_bottom", 16)
+	margin_box.add_theme_constant_override("margin_left", 14)
+	margin_box.add_theme_constant_override("margin_right", 14)
+	scroll.add_child(margin_box)
+
 	var main_panel := VBoxContainer.new()
-	main_panel.custom_minimum_size.x = 375
+	main_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_panel.add_theme_constant_override("separation", 10)
-	scroll.add_child(main_panel)
+	margin_box.add_child(main_panel)
 
 	# Header Title & Tab Bar
 	var header := Label.new()
@@ -256,28 +266,31 @@ func _ready() -> void:
 	tab_btn_catalog.pressed.connect(func() -> void: _switch_tab(1))
 	tab_btn_study.pressed.connect(func() -> void: _switch_tab(0))
 
-	# Quick Camera Preset Bar
+	# Quick Camera Preset Bar (Accurately centered on V20 mannequin landmarks)
 	var cam_bar := HBoxContainer.new()
-	cam_bar.add_theme_constant_override("separation", 4)
+	cam_bar.add_theme_constant_override("separation", 6)
 	main_panel.add_child(cam_bar)
 	var cam_lbl := Label.new()
-	cam_lbl.text = "视角:"
+	cam_lbl.text = "定点视角:"
 	cam_lbl.add_theme_color_override("font_color", Color("3f5953"))
 	cam_bar.add_child(cam_lbl)
 
 	var btn_cam_head := Button.new()
 	btn_cam_head.text = "发型/头部"
-	btn_cam_head.pressed.connect(func() -> void: _set_camera_view(2.15, 1.25, 0.35))
+	btn_cam_head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_cam_head.pressed.connect(func() -> void: _set_camera_view(2.25, 0.95, 0.35))
 	cam_bar.add_child(btn_cam_head)
 
 	var btn_cam_torso := Button.new()
 	btn_cam_torso.text = "领口/上身"
-	btn_cam_torso.pressed.connect(func() -> void: _set_camera_view(1.65, 2.05, 0.35))
+	btn_cam_torso.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_cam_torso.pressed.connect(func() -> void: _set_camera_view(1.62, 1.45, 0.35))
 	cam_bar.add_child(btn_cam_torso)
 
 	var btn_cam_full := Button.new()
-	btn_cam_full.text = "全身"
-	btn_cam_full.pressed.connect(func() -> void: _set_camera_view(1.35, 3.30, 0.35))
+	btn_cam_full.text = "全身模特"
+	btn_cam_full.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_cam_full.pressed.connect(func() -> void: _set_camera_view(1.32, 2.85, 0.35))
 	cam_bar.add_child(btn_cam_full)
 
 	var sep_cam := HSeparator.new()
@@ -339,38 +352,64 @@ func _reset_doll_to_base_mannequin() -> void:
 	doll.hair_style = -1
 	doll.reference_costume = false
 
-	# Clear hair
+	# Clear custom hair & hats & props
 	Catalog.clear_hair_slot(doll)
-	# Clear clothes root
-	if doll.clothes_root != null:
-		for ch in doll.clothes_root.get_children():
-			ch.free()
-
-	# Clear hat & prop
 	Catalog.clear_hat_slot(doll)
 	Catalog.clear_prop_slot(doll)
 
-	# Unhide bare limbs on V20 mannequin
+	# Clean modular clothes root
+	if doll.clothes_root != null:
+		for ch in doll.clothes_root.get_children():
+			ch.free()
+		doll.clothes_root.visible = true
+
+	# Enable continuous underbody mannequin (V20 short-arm 0.045)
 	doll.set_underbody_mode(true)
+	# Re-enable clothes_root since set_underbody_mode toggles it off
+	if doll.clothes_root != null:
+		doll.clothes_root.visible = true
+
 	var br := Catalog._resolve_body_rig(doll)
+	# Ensure MannequinTorso is visible
+	if br != null:
+		for part_name in ["MannequinTorso", "PelvisUnderbody", "Neck"]:
+			var p := br.get_node_or_null(part_name)
+			if p != null: p.visible = true
+		var torso_in_skinned := br.get_node_or_null("SkinnedMeshes/torso/MannequinTorso")
+		if torso_in_skinned != null: torso_in_skinned.visible = true
+
+	# Restore clean bare arms
 	for arm_name in ["ArmLeft", "ArmRight"]:
 		var arm := br.get_node_or_null(arm_name)
 		if arm != null:
 			for sub in arm.get_children():
-				if str(sub.name) in ["ArmMannequin", "ArmMannequinThumb"]:
+				var sname := str(sub.name)
+				if sname in ["ArmMannequin", "ArmMannequinThumb"]:
 					sub.visible = true
-				else:
+				elif sname == "WristDetails":
+					sub.visible = false
+				elif sname.begins_with("Custom") or sname.begins_with("Sleeve") or sname.begins_with("Cuff"):
 					sub.free()
+
+	# Restore clean bare legs
 	for leg_name in ["LegLeft", "LegRight"]:
 		var leg := br.get_node_or_null(leg_name)
 		if leg != null:
 			for sub in leg.get_children():
-				if str(sub.name).begins_with("CustomShortsLeg"):
+				var sname := str(sub.name)
+				if sname.begins_with("Custom") or sname.begins_with("Shorts"):
 					sub.free()
-				elif str(sub.name).begins_with("LegMannequin"):
+				elif sname.begins_with("LegMannequin"):
 					sub.visible = true
-				elif str(sub.name).begins_with("Trouser"):
+				elif sname.begins_with("Trouser") or sname.begins_with("Calf"):
 					sub.visible = false
+
+	# Ensure Head features are visible
+	var hr := Catalog._resolve_head_rig(doll)
+	if hr != null:
+		for feat in ["Head", "Ear", "EarInner", "BeanEye", "RoundNose", "Smile", "Eyebrow"]:
+			var f_node := hr.get_node_or_null(feat)
+			if f_node != null: f_node.visible = true
 
 	_apply_skin_color(current_skin_color)
 	_apply_eye_color(current_eye_color)
@@ -653,23 +692,32 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	# SECTION 2: MANNEQUIN & COLORS
 	_build_section_header(parent, "② 模特素体与色彩定制 (Mannequin & Colors)")
 	var color_box := VBoxContainer.new()
-	color_box.add_theme_constant_override("separation", 6)
+	color_box.add_theme_constant_override("separation", 8)
 	parent.add_child(color_box)
 
 	# Skin Tone Swatches
-	var skin_row := HBoxContainer.new()
-	color_box.add_child(skin_row)
+	var skin_box := VBoxContainer.new()
+	skin_box.add_theme_constant_override("separation", 3)
+	color_box.add_child(skin_box)
+
+	var skin_top := HBoxContainer.new()
+	skin_box.add_child(skin_top)
 	var skin_lbl := Label.new()
-	skin_lbl.text = "素体肤色:"
+	skin_lbl.text = "素体肤色 (Skin Tone):"
 	skin_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	skin_row.add_child(skin_lbl)
+	skin_lbl.add_theme_color_override("font_color", Color("344a49"))
+	skin_lbl.add_theme_font_size_override("font_size", 12)
+	skin_top.add_child(skin_lbl)
 
 	var cp_skin := ColorPickerButton.new()
 	cp_skin.color = current_skin_color
-	cp_skin.custom_minimum_size = Vector2(40, 24)
-	skin_row.add_child(cp_skin)
+	cp_skin.custom_minimum_size = Vector2(72, 24)
+	skin_top.add_child(cp_skin)
 	cp_skin.color_changed.connect(_apply_skin_color)
 
+	var skin_preset_row := HBoxContainer.new()
+	skin_preset_row.add_theme_constant_override("separation", 4)
+	skin_box.add_child(skin_preset_row)
 	var skin_presets := [
 		{"name": "粉白", "color": Color("f8dfd4")},
 		{"name": "自然", "color": Color("f3d0be")},
@@ -679,26 +727,37 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	for sp in skin_presets:
 		var b := Button.new()
 		b.text = sp["name"]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var c: Color = sp["color"]
 		b.pressed.connect(func() -> void:
 			cp_skin.color = c
 			_apply_skin_color(c))
-		skin_row.add_child(b)
+		skin_preset_row.add_child(b)
 
 	# Hair Color Swatches
-	var hair_row := HBoxContainer.new()
-	color_box.add_child(hair_row)
+	var hair_box := VBoxContainer.new()
+	hair_box.add_theme_constant_override("separation", 3)
+	color_box.add_child(hair_box)
+
+	var hair_top := HBoxContainer.new()
+	hair_box.add_child(hair_top)
 	var hair_lbl := Label.new()
-	hair_lbl.text = "发丝发色:"
+	hair_lbl.text = "发丝发色 (Hair Color):"
 	hair_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hair_row.add_child(hair_lbl)
+	hair_lbl.add_theme_color_override("font_color", Color("344a49"))
+	hair_lbl.add_theme_font_size_override("font_size", 12)
+	hair_top.add_child(hair_lbl)
 
 	var cp_hair := ColorPickerButton.new()
 	cp_hair.color = current_hair_color
-	cp_hair.custom_minimum_size = Vector2(40, 24)
-	hair_row.add_child(cp_hair)
+	cp_hair.custom_minimum_size = Vector2(72, 24)
+	hair_top.add_child(cp_hair)
 	cp_hair.color_changed.connect(_apply_hair_color)
 
+	var hair_preset_grid := GridContainer.new()
+	hair_preset_grid.columns = 6
+	hair_preset_grid.add_theme_constant_override("h_separation", 4)
+	hair_box.add_child(hair_preset_grid)
 	var hair_presets := [
 		{"name": "黑", "color": Color("211e1c")},
 		{"name": "栗棕", "color": Color("4c3529")},
@@ -710,26 +769,37 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	for hp in hair_presets:
 		var b := Button.new()
 		b.text = hp["name"]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var c: Color = hp["color"]
 		b.pressed.connect(func() -> void:
 			cp_hair.color = c
 			_apply_hair_color(c))
-		hair_row.add_child(b)
+		hair_preset_grid.add_child(b)
 
 	# Eye Color Swatches
-	var eye_row := HBoxContainer.new()
-	color_box.add_child(eye_row)
+	var eye_box := VBoxContainer.new()
+	eye_box.add_theme_constant_override("separation", 3)
+	color_box.add_child(eye_box)
+
+	var eye_top := HBoxContainer.new()
+	eye_box.add_child(eye_top)
 	var eye_lbl := Label.new()
-	eye_lbl.text = "瞳孔瞳色:"
+	eye_lbl.text = "瞳孔瞳色 (Eye Color):"
 	eye_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	eye_row.add_child(eye_lbl)
+	eye_lbl.add_theme_color_override("font_color", Color("344a49"))
+	eye_lbl.add_theme_font_size_override("font_size", 12)
+	eye_top.add_child(eye_lbl)
 
 	var cp_eye := ColorPickerButton.new()
 	cp_eye.color = current_eye_color
-	cp_eye.custom_minimum_size = Vector2(40, 24)
-	eye_row.add_child(cp_eye)
+	cp_eye.custom_minimum_size = Vector2(72, 24)
+	eye_top.add_child(cp_eye)
 	cp_eye.color_changed.connect(_apply_eye_color)
 
+	var eye_preset_grid := GridContainer.new()
+	eye_preset_grid.columns = 5
+	eye_preset_grid.add_theme_constant_override("h_separation", 4)
+	eye_box.add_child(eye_preset_grid)
 	var eye_presets := [
 		{"name": "曜黑", "color": Color("1e1b1a")},
 		{"name": "琥珀", "color": Color("86532d")},
@@ -740,43 +810,72 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	for ep in eye_presets:
 		var b := Button.new()
 		b.text = ep["name"]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var c: Color = ep["color"]
 		b.pressed.connect(func() -> void:
 			cp_eye.color = c
 			_apply_eye_color(c))
-		eye_row.add_child(b)
+		eye_preset_grid.add_child(b)
 
 	# Garment Palette Swatches (Main, Trim, Detail)
-	var g_palette_row := HBoxContainer.new()
-	color_box.add_child(g_palette_row)
-	var gp_lbl := Label.new()
-	gp_lbl.text = "服装色彩:"
-	gp_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	g_palette_row.add_child(gp_lbl)
+	var gp_box := VBoxContainer.new()
+	gp_box.add_theme_constant_override("separation", 3)
+	color_box.add_child(gp_box)
 
+	var gp_lbl := Label.new()
+	gp_lbl.text = "服装配色方案 (主色 / 包边辅色 / 扣饰细节):"
+	gp_lbl.add_theme_color_override("font_color", Color("344a49"))
+	gp_lbl.add_theme_font_size_override("font_size", 12)
+	gp_box.add_child(gp_lbl)
+
+	var g_palette_row := HBoxContainer.new()
+	g_palette_row.add_theme_constant_override("separation", 6)
+	gp_box.add_child(g_palette_row)
+
+	var main_col := HBoxContainer.new()
+	main_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	g_palette_row.add_child(main_col)
+	var l_main := Label.new()
+	l_main.text = "主布:"
+	l_main.add_theme_font_size_override("font_size", 11)
+	main_col.add_child(l_main)
 	var cp_g_main := ColorPickerButton.new()
 	cp_g_main.color = current_garment_palette["main"]
-	cp_g_main.tooltip_text = "服装主色 (Main Cloth Color)"
-	cp_g_main.custom_minimum_size = Vector2(36, 24)
-	g_palette_row.add_child(cp_g_main)
+	cp_g_main.tooltip_text = "服装主色"
+	cp_g_main.custom_minimum_size = Vector2(48, 24)
+	main_col.add_child(cp_g_main)
 	cp_g_main.color_changed.connect(func(c: Color) -> void:
 		current_garment_palette["main"] = c
 		_rebuild_modular_mannequin())
 
+	var trim_col := HBoxContainer.new()
+	trim_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	g_palette_row.add_child(trim_col)
+	var l_trim := Label.new()
+	l_trim.text = "滚边:"
+	l_trim.add_theme_font_size_override("font_size", 11)
+	trim_col.add_child(l_trim)
 	var cp_g_trim := ColorPickerButton.new()
 	cp_g_trim.color = current_garment_palette["trim"]
-	cp_g_trim.tooltip_text = "服装辅色/包边 (Trim & Accent Color)"
-	cp_g_trim.custom_minimum_size = Vector2(36, 24)
-	g_palette_row.add_child(cp_g_trim)
+	cp_g_trim.tooltip_text = "服装辅色/包边"
+	cp_g_trim.custom_minimum_size = Vector2(48, 24)
+	trim_col.add_child(cp_g_trim)
 	cp_g_trim.color_changed.connect(func(c: Color) -> void:
 		current_garment_palette["trim"] = c
 		_rebuild_modular_mannequin())
 
+	var detail_col := HBoxContainer.new()
+	detail_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	g_palette_row.add_child(detail_col)
+	var l_detail := Label.new()
+	l_detail.text = "细节:"
+	l_detail.add_theme_font_size_override("font_size", 11)
+	detail_col.add_child(l_detail)
 	var cp_g_detail := ColorPickerButton.new()
 	cp_g_detail.color = current_garment_palette["detail"]
-	cp_g_detail.tooltip_text = "扣饰/腰带/细节 (Button & Detail Color)"
-	cp_g_detail.custom_minimum_size = Vector2(36, 24)
-	g_palette_row.add_child(cp_g_detail)
+	cp_g_detail.tooltip_text = "扣饰/腰带/细节"
+	cp_g_detail.custom_minimum_size = Vector2(48, 24)
+	detail_col.add_child(cp_g_detail)
 	cp_g_detail.color_changed.connect(func(c: Color) -> void:
 		current_garment_palette["detail"] = c
 		_rebuild_modular_mannequin())
@@ -822,20 +921,19 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 		_set_active_slots("04", "07", "12", "none", "16", "none", "none"))
 	preset_bar.add_child(btn_pinafore)
 
-	# Slot Pickers Grid
+	# Slot Pickers Grid (Single column so each OptionButton is full-width and never clipped)
 	var s_grid := GridContainer.new()
-	s_grid.columns = 2
-	s_grid.add_theme_constant_override("h_separation", 6)
-	s_grid.add_theme_constant_override("v_separation", 4)
+	s_grid.columns = 1
+	s_grid.add_theme_constant_override("v_separation", 6)
 	layer_box.add_child(s_grid)
 
-	_add_slot_selector(s_grid, "发型槽 (Hair):", "hair", HAIR_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "上装/内搭 (Top):", "top", TOP_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "外搭/叠穿 (Outer):", "outer", OUTER_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "下装槽 (Bottom):", "bottom", BOTTOM_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "发型槽 (Hair Slot):", "hair", HAIR_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "上装/内搭 (Top / Inner):", "top", TOP_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "外搭/叠穿 (Outer / Layer):", "outer", OUTER_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "下装槽 (Bottom / Pants):", "bottom", BOTTOM_SLOT_OPTIONS)
 	_add_slot_selector(s_grid, "头饰槽 (Headwear):", "hat", HAT_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "配饰槽 (Prop):", "prop", PROP_SLOT_OPTIONS)
-	_add_slot_selector(s_grid, "独立摆件 (Figurine):", "figurine", FIGURINE_OPTIONS)
+	_add_slot_selector(s_grid, "配饰槽 (Prop / Bag):", "prop", PROP_SLOT_OPTIONS)
+	_add_slot_selector(s_grid, "独立摆件 (Craft Figurine):", "figurine", FIGURINE_OPTIONS)
 
 	parent.add_child(HSeparator.new())
 
@@ -926,15 +1024,18 @@ func _sync_slot_pickers() -> void:
 func _add_slot_selector(parent: Control, label_text: String, slot_key: String, options: Array) -> void:
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 2)
 	parent.add_child(col)
 
 	var lbl := Label.new()
 	lbl.text = label_text
-	lbl.add_theme_color_override("font_color", Color("344a49"))
+	lbl.add_theme_color_override("font_color", Color("1b443c"))
 	lbl.add_theme_font_size_override("font_size", 12)
 	col.add_child(lbl)
 
 	var ob := OptionButton.new()
+	ob.custom_minimum_size.y = 30
+	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for opt in options:
 		ob.add_item(opt["name"])
 	ob.select(0)
@@ -958,11 +1059,22 @@ func _add_slot_selector(parent: Control, label_text: String, slot_key: String, o
 
 
 func _build_section_header(parent: Control, title: String) -> void:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("dcebe6")
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	panel.add_theme_stylebox_override("panel", style)
+	parent.add_child(panel)
+
 	var lbl := Label.new()
 	lbl.text = title
-	lbl.add_theme_font_size_override("font_size", 14)
-	lbl.add_theme_color_override("font_color", Color("204d43"))
-	parent.add_child(lbl)
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color("123c34"))
+	panel.add_child(lbl)
 
 
 # ============================================================================
@@ -1338,13 +1450,17 @@ func _orbit_input(event: InputEvent) -> void:
 
 
 func _update_camera() -> void:
+	if not is_instance_valid(camera): return
 	var cos_p := cos(pitch)
 	var sin_p := sin(pitch)
 	var cx := sin(orbit) * cos_p * cam_distance
 	var cy := target_y + sin_p * cam_distance
 	var cz := cos(orbit) * cos_p * cam_distance
 	camera.position = Vector3(cx, cy, cz)
-	camera.look_at(Vector3(0, target_y, 0))
+	if camera.is_inside_tree():
+		camera.look_at(Vector3(0, target_y, 0))
+	else:
+		camera.look_at_from_position(camera.position, Vector3(0, target_y, 0))
 
 
 # ============================================================================
@@ -1394,13 +1510,13 @@ func _process(delta: float) -> void:
 			doll.position.x = 0.0
 		4: # Walk Sway
 			walk = 1.0
-			doll.position.x = sin(phase * 2.2) * 0.22
+			doll.position.x = 0.0
 			doll.rig.animate(phase * 6.0, walk, "idle", phase)
 		5: # Start / Stop Jolt
 			var cycle := fmod(phase, 3.6)
 			if cycle < 1.4:
 				current_omega += 4.5
-			doll.position.x = (sin(phase * 3.0) * 0.15 if cycle < 1.4 else 0.0)
+			doll.position.x = 0.0
 			doll.rig.animate(phase * 5.0, (1.0 if cycle < 1.4 else 0.0), "idle", phase)
 
 	# Decay manual omega gently towards zero if mouse released
@@ -1432,10 +1548,10 @@ func _update_hair_secondary_physics(delta: float, omega: float, walk: float) -> 
 	var target_flare := clampf(omega * omega * 0.0075 * dynamic_hair_sway_scale, 0.0, 0.45)
 	var bounce := sin(phase * 12.0) * 0.012 * walk * dynamic_hair_sway_scale
 
-	# React to ponytails, twin tails, and long mantles
+	# React to ponytails, twin tails, and long mantles (NEVER rotate Canopy skull cap!)
 	for child in doll.hair_root.get_children():
 		var c_name := str(child.name)
-		if c_name.contains("Ponytail") or c_name.contains("TwinPigtail") or c_name.contains("Braid") or c_name.contains("HalfUp") or c_name.contains("Canopy"):
+		if (c_name.contains("Ponytail") or c_name.contains("TwinPigtail") or c_name.contains("Braid")) and not c_name.contains("Canopy"):
 			var n := child as Node3D
 			if n != null:
 				n.rotation.z = lerpf(n.rotation.z, target_lag, delta * 10.0)
