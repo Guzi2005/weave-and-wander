@@ -287,6 +287,23 @@ static func clear_hair_slot(doll_or_head: Node3D) -> Node3D:
 	return hair_root
 
 
+static func clear_hat_slot(doll_or_head: Node3D) -> void:
+	var hr := _resolve_head_rig(doll_or_head)
+	var old := hr.get_node_or_null("CustomHat")
+	if old != null:
+		old.free()
+
+
+static func clear_prop_slot(doll: Node3D) -> void:
+	var old := doll.get_node_or_null("CanvasToteBag")
+	if old != null:
+		old.free()
+
+
+static func clear_garment_slot(doll: Node3D, slot_tag: String) -> void:
+	_clear_doll_garment_nodes(doll, false, slot_tag)
+
+
 # Helper: minimum safe clearance radius (rx, rz) in HeadRig local space at height y and azimuth angle (0 = +Z front, PI = -Z back)
 static func _head_neck_min_radii(y: float, angle: float, cover_ears: bool = false) -> Vector2:
 	var ca := cos(angle) # +1 at front (+Z), -1 at back (-Z)
@@ -1265,9 +1282,36 @@ static func build_hair_06_twin_pigtails(doll: Node3D, params: Dictionary = {}) -
 # SHARED GARMENT HELPERS FOR V20 SHORT-ARM MANNEQUIN
 # ============================================================================
 
-static func _clear_doll_garment_nodes(doll: Node3D, remove_trouser: bool = false) -> void:
+static func _clear_doll_garment_nodes(doll: Node3D, remove_trouser: bool = false, slot_tag: String = "") -> void:
 	var br := _resolve_body_rig(doll)
 	var cr := _resolve_clothes_root(doll)
+	if not slot_tag.is_empty():
+		# Non-destructive modular slot removal: clears ONLY nodes tagged for this slot
+		for child in cr.get_children():
+			if child.get_meta("garment_slot", "") == slot_tag or child.name == ("SlotGarment_" + slot_tag):
+				child.free()
+		if slot_tag in ["top", "outer"]:
+			for arm_name in ["ArmLeft", "ArmRight"]:
+				var arm := br.get_node_or_null(arm_name)
+				if arm == null: continue
+				for sub in arm.get_children():
+					if sub.get_meta("garment_slot", "") == slot_tag:
+						sub.free()
+		if slot_tag == "bottom":
+			for leg_name in ["LegLeft", "LegRight"]:
+				var leg := br.get_node_or_null(leg_name)
+				if leg == null: continue
+				for sub in leg.get_children():
+					if str(sub.name).begins_with("CustomShortsLeg"):
+						sub.free()
+					elif str(sub.name).begins_with("Trouser"):
+						if remove_trouser:
+							sub.free()
+						else:
+							sub.visible = true
+		return
+
+	# Full wipe (original default behavior):
 	for child in cr.get_children():
 		if not remove_trouser and str(child.name) in ["TrouserWaistband", "TrouserSeat"]:
 			continue
@@ -1487,9 +1531,12 @@ static func _build_thick_collar_slab(parent: Node3D, label: String, top_grid: Pa
 # sleeve_length (0.18..0.42), body_ease (0.018..0.052), pocket_enabled (bool)
 static func build_garment_07_cuban_shirt_remake(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "top" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var shirt_color: Color = params.get("color", Color(0.84, 0.89, 0.82))
@@ -1678,9 +1725,12 @@ static func build_garment_07_cuban_shirt_remake(doll: Node3D, params: Dictionary
 # Anatomical front-sloped round neckline + extruded/shrinkwrapped Peter Pan collar + high empire seam + monotonically flaring peplum
 static func build_garment_08_babydoll_remake(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "top" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var blouse_color: Color = params.get("color", Color(0.95, 0.89, 0.84))
@@ -1812,16 +1862,19 @@ static func build_garment_08_babydoll_remake(doll: Node3D, params: Dictionary = 
 # Restores crisp V-neck knit torso shell + compact inner shirt collar & tie + non-floating extruded V-neck/hem/armhole varsity stripes
 static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "outer" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var vest_color: Color = params.get("color", Color(0.18, 0.24, 0.36))
 	var stripe_color: Color = params.get("stripe_color", Color(0.93, 0.88, 0.76))
 	var accent_stripe: Color = params.get("accent_stripe", Color(0.68, 0.22, 0.24))
 	var under_shirt_color: Color = params.get("under_shirt_color", Color(0.95, 0.94, 0.90))
-	var layered_shirt: bool = params.get("layered_shirt", true)
+	var layered_shirt: bool = bool(params.get("layered_shirt", not slot_mode))
 	var garment_length: float = clampf(params.get("garment_length", 0.48), 0.0, 1.0)
 	var v_depth: float = clampf(params.get("v_depth", 0.27), 0.16, 0.36)
 	var shoulder_width: float = clampf(params.get("shoulder_width", 1.0), 0.82, 1.15)
@@ -2017,9 +2070,12 @@ static func build_garment_09_preppy_vest_remake(doll: Node3D, params: Dictionary
 # #10 水手领基础衫 (Classic Sailor Collar Blouse)
 static func build_garment_10_sailor_blouse(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "top" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var body_color: Color = params.get("color", Color(0.95, 0.94, 0.90))
@@ -2210,9 +2266,12 @@ static func build_garment_10_sailor_blouse(doll: Node3D, params: Dictionary = {}
 # #11 经典V领针织开衫 (Relaxed V-Neck Button Knit Cardigan over Inner Camisole)
 static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "outer" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var cardi_color: Color = params.get("color", Color(0.76, 0.56, 0.44))
@@ -2223,36 +2282,39 @@ static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}
 	var v_drop: float = params.get("v_drop", 0.26)
 	var sleeve_length: float = params.get("sleeve_length", 0.44)
 	var body_ease: float = params.get("body_ease", 0.030)
+	var pocket_enabled: bool = bool(params.get("pocket_enabled", true))
 	var pocket_scale: float = params.get("pocket_scale", 1.0)
+	var has_inner: bool = bool(params.get("has_inner", not slot_mode))
 
 	var hem_y := lerpf(1.34, 1.02, garment_length)
 	var top_y := 1.934
 	var v_bottom_y := top_y - v_drop - 0.035
 
 	# 1. Inner U-Scoop Camisole/Tee covering the sloping shoulders up to the short neck root + Extruded Binding
-	var inner_grid := PackedVector3Array()
-	var inner_inds := PackedInt32Array()
-	var in_rings := 14
-	var in_sides := 36
-	var scoop_front_y := maxf(v_bottom_y + 0.065, 1.785)
-	for i in in_rings + 1:
-		var t := float(i) / in_rings
-		var y_profile := lerpf(v_bottom_y - 0.05, 1.936, t)
-		var sl_x := v20_torso_slice(y_profile)
-		for s in in_sides + 1:
-			var a := -PI * 0.5 + TAU * float(s) / in_sides
-			var neck_y := _anatomical_neck_y(a, 1.942, 1.932, scoop_front_y)
-			var y := lerpf(v_bottom_y - 0.05, neck_y, t)
-			var sl_z := v20_torso_slice(y)
-			inner_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.010), y, sin(a) * (float(sl_z["rz"]) + 0.010) + float(sl_z["z"])))
-	for i in in_rings:
-		for s in in_sides:
-			var a := i * (in_sides + 1) + s
-			var b := a + in_sides + 1
-			emit_quad_outward(inner_grid, inner_inds, a, a + 1, b + 1, b, Vector3(0, 1.76, 0))
-	build_mesh_instance(root, "InnerCamisole", inner_grid, compute_welded_normals(inner_grid, inner_inds), inner_inds, inner_color, 0.86, 0.0003)
-	_extrude_uv_strip_from_grid(root, "InnerCamisoleTrim", inner_grid, in_rings, in_sides,
-		0.86, 1.0, 0.0, 1.0, 2, in_sides, 0.0025, 0.0015, Vector3(0, 1.80, 0), inner_color.darkened(0.05))
+	if has_inner:
+		var inner_grid := PackedVector3Array()
+		var inner_inds := PackedInt32Array()
+		var in_rings := 14
+		var in_sides := 36
+		var scoop_front_y := maxf(v_bottom_y + 0.065, 1.785)
+		for i in in_rings + 1:
+			var t := float(i) / in_rings
+			var y_profile := lerpf(v_bottom_y - 0.05, 1.936, t)
+			var sl_x := v20_torso_slice(y_profile)
+			for s in in_sides + 1:
+				var a := -PI * 0.5 + TAU * float(s) / in_sides
+				var neck_y := _anatomical_neck_y(a, 1.942, 1.932, scoop_front_y)
+				var y := lerpf(v_bottom_y - 0.05, neck_y, t)
+				var sl_z := v20_torso_slice(y)
+				inner_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.010), y, sin(a) * (float(sl_z["rz"]) + 0.010) + float(sl_z["z"])))
+		for i in in_rings:
+			for s in in_sides:
+				var a := i * (in_sides + 1) + s
+				var b := a + in_sides + 1
+				emit_quad_outward(inner_grid, inner_inds, a, a + 1, b + 1, b, Vector3(0, 1.76, 0))
+		build_mesh_instance(root, "InnerCamisole", inner_grid, compute_welded_normals(inner_grid, inner_inds), inner_inds, inner_color, 0.86, 0.0003)
+		_extrude_uv_strip_from_grid(root, "InnerCamisoleTrim", inner_grid, in_rings, in_sides,
+			0.86, 1.0, 0.0, 1.0, 2, in_sides, 0.0025, 0.0015, Vector3(0, 1.80, 0), inner_color.darkened(0.05))
 
 	# Shared evaluator for Cardigan front/back surface
 	var eval_cardi_z := func(px: float, py: float, is_front: bool) -> float:
@@ -2355,7 +2417,7 @@ static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}
 		add_ellipsoid(root, "CardiButton%d" % b_idx, Vector3(0, by, bz), Vector3(0.013, 0.013, 0.005), button_color)
 
 	# 4. Shrinkwrapped & Extruded Front Knit Patch Pockets
-	if pocket_scale > 0.05:
+	if pocket_enabled and pocket_scale > 0.05:
 		var pk_y := lerpf(hem_y + 0.11, 1.28, 0.35)
 		var pk_hw := 0.038 * pocket_scale
 		var pk_hh := 0.044 * pocket_scale
@@ -2383,9 +2445,13 @@ static func build_garment_11_knit_cardigan(doll: Node3D, params: Dictionary = {}
 # #12 学院工装背带裙 (Overall / Pinafore Bib Jumper Dress over Inner Blouse, Exposing V20 Legs)
 static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	# Hide trousers so V20 LegMannequin bare legs show cleanly beneath the skirt!
-	_clear_doll_garment_nodes(doll, true)
+	var remove_tr: bool = params.get("remove_trouser", true)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "outer" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var dress_color: Color = params.get("color", Color(0.28, 0.36, 0.46))
@@ -2396,34 +2462,37 @@ static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {
 	var bib_height: float = params.get("bib_height", 0.34)
 	var bib_width: float = params.get("bib_width", 0.115)
 	var strap_width: float = params.get("strap_width", 0.036)
+	var pocket_enabled: bool = bool(params.get("pocket_enabled", true))
+	var has_inner: bool = bool(params.get("has_inner", not slot_mode))
 
 	var waist_y := 1.34
 	var skirt_hem_y := lerpf(0.92, 0.56, skirt_length)
 
 	# 1. Fitted Inner Crew-Neck Blouse covering the sloping shoulders up to the short neck root (1.946 back -> 1.934 side -> 1.895 front!) + Extruded Collar Band
-	var b_rings := 22
-	var b_sides := 44
-	var b_grid := PackedVector3Array()
-	var b_inds := PackedInt32Array()
-	for i in b_rings + 1:
-		var t := float(i) / b_rings
-		var y_profile := lerpf(waist_y - 0.03, 1.936, t)
-		var sl_x := v20_torso_slice(y_profile)
-		for s in b_sides + 1:
-			var a := -PI * 0.5 + TAU * float(s) / b_sides
-			var neck_y := _anatomical_neck_y(a, 1.946, 1.934, 1.895)
-			var y := lerpf(waist_y - 0.03, neck_y, t)
-			var sl_z := v20_torso_slice(y)
-			b_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.014), y, sin(a) * (float(sl_z["rz"]) + 0.014) + float(sl_z["z"])))
-	for i in b_rings:
-		for s in b_sides:
-			var a := i * (b_sides + 1) + s
-			var b := a + b_sides + 1
-			emit_quad_outward(b_grid, b_inds, a, a + 1, b + 1, b, Vector3(0, 1.66, 0))
-	build_mesh_instance(root, "InnerBlouseTorso", b_grid, compute_welded_normals(b_grid, b_inds), b_inds, shirt_color, 0.85, 0.0003)
-	_extrude_uv_strip_from_grid(root, "InnerBlouseCollar", b_grid, b_rings, b_sides,
-		0.89, 1.0, 0.0, 1.0, 3, b_sides, 0.0032, 0.0015, Vector3(0, 1.90, 0), shirt_color.darkened(0.06))
-	_build_v20_sleeve_pair(doll, "UnderSleeve", shirt_color, 0.02, -0.24, 0.014, 0.020, 0.010, shirt_color.darkened(0.05), 0.022, 0.85, 0.0004)
+	if has_inner:
+		var b_rings := 22
+		var b_sides := 44
+		var b_grid := PackedVector3Array()
+		var b_inds := PackedInt32Array()
+		for i in b_rings + 1:
+			var t := float(i) / b_rings
+			var y_profile := lerpf(waist_y - 0.03, 1.936, t)
+			var sl_x := v20_torso_slice(y_profile)
+			for s in b_sides + 1:
+				var a := -PI * 0.5 + TAU * float(s) / b_sides
+				var neck_y := _anatomical_neck_y(a, 1.946, 1.934, 1.895)
+				var y := lerpf(waist_y - 0.03, neck_y, t)
+				var sl_z := v20_torso_slice(y)
+				b_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.014), y, sin(a) * (float(sl_z["rz"]) + 0.014) + float(sl_z["z"])))
+		for i in b_rings:
+			for s in b_sides:
+				var a := i * (b_sides + 1) + s
+				var b := a + b_sides + 1
+				emit_quad_outward(b_grid, b_inds, a, a + 1, b + 1, b, Vector3(0, 1.66, 0))
+		build_mesh_instance(root, "InnerBlouseTorso", b_grid, compute_welded_normals(b_grid, b_inds), b_inds, shirt_color, 0.85, 0.0003)
+		_extrude_uv_strip_from_grid(root, "InnerBlouseCollar", b_grid, b_rings, b_sides,
+			0.89, 1.0, 0.0, 1.0, 3, b_sides, 0.0032, 0.0015, Vector3(0, 1.90, 0), shirt_color.darkened(0.06))
+		_build_v20_sleeve_pair(doll, "UnderSleeve", shirt_color, 0.02, -0.24, 0.014, 0.020, 0.010, shirt_color.darkened(0.05), 0.022, 0.85, 0.0004)
 
 	# 2. A-Line Pinafore Skirt from waist_y down to skirt_hem_y + Extruded Waistband
 	var s_rings := 24
@@ -2480,8 +2549,9 @@ static func build_garment_12_pinafore_dress(doll: Node3D, params: Dictionary = {
 			var bx := lerpf(-hw, hw, ut)
 			bib_grid.append(Vector3(bx, by, eval_blouse_z.call(bx, by, true)))
 	_build_extruded_surface_strip(root, "PinaforeBib", bib_grid, bv_steps, bu_steps, 0.0055, 0.0020, Vector3(0, (waist_y + bib_top_y) * 0.5, 0), dress_color)
-	_extrude_uv_strip_from_grid(root, "BibCenterPocket", bib_grid, bv_steps, bu_steps,
-		0.24, 0.72, 0.22, 0.78, 5, 6, 0.0095, 0.0010, Vector3(0, (waist_y + bib_top_y) * 0.5, 0), dress_color.darkened(0.07))
+	if pocket_enabled:
+		_extrude_uv_strip_from_grid(root, "BibCenterPocket", bib_grid, bv_steps, bu_steps,
+			0.24, 0.72, 0.22, 0.78, 5, 6, 0.0095, 0.0010, Vector3(0, (waist_y + bib_top_y) * 0.5, 0), dress_color.darkened(0.07))
 
 	# 5. Shrinkwrapped & Extruded Shoulder Suspender Straps + Brass Overall Buttons (hugs chest & sloped shoulders with 0mm gap!)
 	for side_sign: float in [-1.0, 1.0]:
@@ -2529,9 +2599,12 @@ static func s_rings_stride(sides: int) -> int:
 # #13 法式方领泡泡袖上衣 (French Square-Neck Shirred Puff-Sleeve Peplum Top)
 static func build_garment_13_square_neck_top(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	var remove_tr: bool = params.get("remove_trouser", false)
-	_clear_doll_garment_nodes(doll, remove_tr)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "top" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var top_color: Color = params.get("color", Color(0.86, 0.74, 0.84))
@@ -2635,9 +2708,13 @@ static func build_garment_13_square_neck_top(doll: Node3D, params: Dictionary = 
 # #14 高腰百慕大阔腿短裤 (High-Waist Pleated Bermuda Shorts / Culottes with Fitted Knit Top)
 static func build_garment_14_pleated_shorts(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	# Hide full-length trousers so V20 LegMannequin lower legs & knees are visible!
-	_clear_doll_garment_nodes(doll, true)
+	var remove_tr: bool = params.get("remove_trouser", true)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "bottom" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	var root := Node3D.new()
-	root.name = "CustomGarment"
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
 	_resolve_clothes_root(doll).add_child(root)
 
 	var shorts_color: Color = params.get("color", Color(0.78, 0.71, 0.61))
@@ -2646,6 +2723,8 @@ static func build_garment_14_pleated_shorts(doll: Node3D, params: Dictionary = {
 	var inseam_length: float = clampf(params.get("inseam_length", 0.50), 0.0, 1.0)
 	var leg_flare: float = params.get("leg_flare", 0.030)
 	var cuff_height: float = params.get("cuff_height", 0.038)
+	var pocket_enabled: bool = bool(params.get("pocket_enabled", true))
+	var has_top: bool = bool(params.get("has_top", not slot_mode))
 
 	var waist_y := 1.38
 	var crotch_y := 0.99
@@ -2653,29 +2732,30 @@ static func build_garment_14_pleated_shorts(doll: Node3D, params: Dictionary = {
 	var local_hem_y := world_hem_y - 1.10
 
 	# 1. Tucked-in Fitted Knit Crew-Neck Top covering the sloping shoulders up to the short neck root (1.946 back -> 1.934 side -> 1.895 front!) + Extruded Rib Collar
-	var t_rings := 20
-	var t_sides := 44
-	var t_grid := PackedVector3Array()
-	var t_inds := PackedInt32Array()
-	for i in t_rings + 1:
-		var t := float(i) / t_rings
-		var y_profile := lerpf(waist_y - 0.02, 1.936, t)
-		var sl_x := v20_torso_slice(y_profile)
-		for s in t_sides + 1:
-			var a := -PI * 0.5 + TAU * float(s) / t_sides
-			var neck_y := _anatomical_neck_y(a, 1.946, 1.934, 1.895)
-			var y := lerpf(waist_y - 0.02, neck_y, t)
-			var sl_z := v20_torso_slice(y)
-			t_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.012), y, sin(a) * (float(sl_z["rz"]) + 0.012) + float(sl_z["z"])))
-	for i in t_rings:
-		for s in t_sides:
-			var a := i * (t_sides + 1) + s
-			var b := a + t_sides + 1
-			emit_quad_outward(t_grid, t_inds, a, a + 1, b + 1, b, Vector3(0, 1.68, 0))
-	build_mesh_instance(root, "TuckedKnitTop", t_grid, compute_welded_normals(t_grid, t_inds), t_inds, top_color, 0.88, 0.0004)
-	_extrude_uv_strip_from_grid(root, "TuckedTopCollar", t_grid, t_rings, t_sides,
-		0.88, 1.0, 0.0, 1.0, 3, t_sides, 0.0032, 0.0015, Vector3(0, 1.90, 0), top_color.lightened(0.06))
-	_build_v20_sleeve_pair(doll, "UnderSleeve", top_color, 0.02, -0.18, 0.012, 0.016, 0.0, top_color.lightened(0.05), 0.020, 0.88, 0.0004)
+	if has_top:
+		var t_rings := 20
+		var t_sides := 44
+		var t_grid := PackedVector3Array()
+		var t_inds := PackedInt32Array()
+		for i in t_rings + 1:
+			var t := float(i) / t_rings
+			var y_profile := lerpf(waist_y - 0.02, 1.936, t)
+			var sl_x := v20_torso_slice(y_profile)
+			for s in t_sides + 1:
+				var a := -PI * 0.5 + TAU * float(s) / t_sides
+				var neck_y := _anatomical_neck_y(a, 1.946, 1.934, 1.895)
+				var y := lerpf(waist_y - 0.02, neck_y, t)
+				var sl_z := v20_torso_slice(y)
+				t_grid.append(Vector3(cos(a) * (float(sl_x["rx"]) + 0.012), y, sin(a) * (float(sl_z["rz"]) + 0.012) + float(sl_z["z"])))
+		for i in t_rings:
+			for s in t_sides:
+				var a := i * (t_sides + 1) + s
+				var b := a + t_sides + 1
+				emit_quad_outward(t_grid, t_inds, a, a + 1, b + 1, b, Vector3(0, 1.68, 0))
+		build_mesh_instance(root, "TuckedKnitTop", t_grid, compute_welded_normals(t_grid, t_inds), t_inds, top_color, 0.88, 0.0004)
+		_extrude_uv_strip_from_grid(root, "TuckedTopCollar", t_grid, t_rings, t_sides,
+			0.88, 1.0, 0.0, 1.0, 3, t_sides, 0.0032, 0.0015, Vector3(0, 1.90, 0), top_color.lightened(0.06))
+		_build_v20_sleeve_pair(doll, "UnderSleeve", top_color, 0.02, -0.18, 0.012, 0.016, 0.0, top_color.lightened(0.05), 0.020, 0.88, 0.0004)
 
 	# 2. High-Waisted Pleated Hip & Pelvis Shorts Block (waist_y down to crotch_y)
 	var p_rings := 14
@@ -2710,6 +2790,23 @@ static func build_garment_14_pleated_shorts(doll: Node3D, params: Dictionary = {
 	var w_sl := v20_torso_slice(waist_y - 0.015)
 	add_ellipsoid(root, "BeltBuckle", Vector3(0, waist_y - 0.015, float(w_sl["rz"]) + float(w_sl["z"]) + 0.026),
 		Vector3(0.024, 0.019, 0.006), Color(0.84, 0.70, 0.42))
+
+	# Slant Hip Slash Pockets
+	if pocket_enabled:
+		for side_sign: float in [-1.0, 1.0]:
+			var pk_grid := PackedVector3Array()
+			var pk_rows := 6
+			var pk_cols := 3
+			for r in pk_rows + 1:
+				var py := lerpf(1.21, 1.35, float(r) / pk_rows)
+				var sl := v20_torso_slice(py)
+				var rx := float(sl["rx"]) + 0.027
+				var rz := float(sl["rz"]) + 0.025
+				for c in pk_cols + 1:
+					var a: float = side_sign * lerpf(0.55, 0.92, float(c) / pk_cols)
+					pk_grid.append(Vector3(cos(a) * rx, py, sin(a) * rz + float(sl["z"])))
+			_build_extruded_surface_strip(root, "ShortsPocket" + ("L" if side_sign < 0 else "R"),
+				pk_grid, pk_rows, pk_cols, 0.0042, 0.0016, Vector3(0, 1.28, 0), shorts_color.darkened(0.08))
 
 	# 4. Left & Right Wide Pleated Shorts Leg Tubes with Extruded Turned-Up Cuffs
 	for side_idx in 2:
@@ -2760,7 +2857,10 @@ static func build_garment_14_pleated_shorts(doll: Node3D, params: Dictionary = {
 # #15 半高领无袖A字背心裙 (Sleeveless Mock-Neck A-Line Tent Shift Dress, Exposing V20 Arms & Calves)
 static func build_garment_15_mock_neck_shift_dress(doll: Node3D, params: Dictionary = {}) -> Node3D:
 	# Hide trousers and sleeves so both V20 bare arms (ArmMannequin) and bare calves (LegMannequin) are shown!
-	_clear_doll_garment_nodes(doll, true)
+	var remove_tr: bool = params.get("remove_trouser", true)
+	var slot_mode: bool = bool(params.get("slot_mode", false))
+	var slot_tag: String = str(params.get("slot_tag", "top" if slot_mode else ""))
+	_clear_doll_garment_nodes(doll, remove_tr, slot_tag)
 	for leg_name in ["LegLeft", "LegRight"]:
 		var leg := _resolve_body_rig(doll).get_node_or_null(leg_name)
 		if leg != null:
@@ -2770,8 +2870,9 @@ static func build_garment_15_mock_neck_shift_dress(doll: Node3D, params: Diction
 					leg.remove_child(ch)
 
 	var root := Node3D.new()
-	root.name = "CustomGarment"
-	doll.add_child(root)
+	root.name = ("SlotGarment_" + slot_tag) if slot_mode else "CustomGarment"
+	if slot_mode: root.set_meta("garment_slot", slot_tag)
+	_resolve_clothes_root(doll).add_child(root)
 
 	var dress_color: Color = params.get("color", Color(0.68, 0.34, 0.32))
 	var trim_color: Color = params.get("trim_color", dress_color.lightened(0.14))
@@ -3541,22 +3642,24 @@ static func build_prop_19_canvas_tote_bag(parent: Node3D, params: Dictionary = {
 	add_ValidationBand(bag_root, "TopStitchedHemBand", rim_pts, 0.026, 0.007, canvas_color.lightened(0.03))
 
 	# 3. Front Stitched Patch Pocket + Woven Brand Label Tab
-	var pk_y := bag_height * 0.48
-	var pk_z := hd * 0.96 + 0.008
-	var pk_w := bag_width * 0.24
-	var pk_h := bag_height * 0.22
-	var pk_verts := PackedVector3Array([
-		Vector3(-pk_w, pk_y - pk_h, pk_z),
-		Vector3(pk_w, pk_y - pk_h, pk_z),
-		Vector3(pk_w, pk_y + pk_h, pk_z - 0.003),
-		Vector3(-pk_w, pk_y + pk_h, pk_z - 0.003)
-	])
-	var pk_inds := PackedInt32Array([0, 1, 2, 0, 2, 3])
-	build_mesh_instance(bag_root, "FrontPatchPocket", pk_verts,
-		compute_welded_normals(pk_verts, pk_inds), pk_inds, pocket_color, 0.89, 0.0004)
-	add_ValidationBand(bag_root, "PocketTopHem",
-		PackedVector3Array([Vector3(-pk_w, pk_y + pk_h, pk_z), Vector3(0, pk_y + pk_h, pk_z + 0.002), Vector3(pk_w, pk_y + pk_h, pk_z)]),
-		0.016, 0.006, strap_color)
+	var pocket_enabled: bool = bool(params.get("pocket_enabled", true))
+	if pocket_enabled:
+		var pk_y := bag_height * 0.48
+		var pk_z := hd * 0.96 + 0.008
+		var pk_w := bag_width * 0.24
+		var pk_h := bag_height * 0.22
+		var pk_verts := PackedVector3Array([
+			Vector3(-pk_w, pk_y - pk_h, pk_z),
+			Vector3(pk_w, pk_y - pk_h, pk_z),
+			Vector3(pk_w, pk_y + pk_h, pk_z - 0.003),
+			Vector3(-pk_w, pk_y + pk_h, pk_z - 0.003)
+		])
+		var pk_inds := PackedInt32Array([0, 1, 2, 0, 2, 3])
+		build_mesh_instance(bag_root, "FrontPatchPocket", pk_verts,
+			compute_welded_normals(pk_verts, pk_inds), pk_inds, pocket_color, 0.89, 0.0004)
+		add_ValidationBand(bag_root, "PocketTopHem",
+			PackedVector3Array([Vector3(-pk_w, pk_y + pk_h, pk_z), Vector3(0, pk_y + pk_h, pk_z + 0.002), Vector3(pk_w, pk_y + pk_h, pk_z)]),
+			0.016, 0.006, strap_color)
 
 	# 4. Dual Flat Cotton Webbing Shoulder Straps with Box-Stitch Anchor Tabs
 	var strap_span_x := bag_width * 0.24

@@ -291,3 +291,52 @@
   3. **连续 3D 颅顶椭球面参数化**：`#01 Bob`、`#03 Half-Up`、`#05 Wavy Lob` 冠顶段（$t \le 0.35$）重构为球极余纬角映射 $\phi(t) \in [0.08, 1.46]$，严格服从 $y(t) = head\_cy + R_y \cos\phi$ 与 $r(t) = R \sin\phi$。斜率 $dy/drad$ 从冠顶的 0.00 单调顺滑下降至 $-5.31$，与球状颅盖完全同心贴合，彻底消除了瓶盖平顶与直角肩壁；
   4. **发根天然微发旋（Whorl）与闭合缝合**：发片发根端按小环弧（半径约 1.8~2.3cm）自然铺开，配合 $lt = 0$ 处的无缝发片侧边并拢与顶封顶 Quad 缝合，形成连贯有机的头顶发丝流向；
   5. **100% 向下兼容与实时交互验证**：保留所有既有发长、斜切、卷度、耳前耳后分片及开关参数，`accepted_body_v20.gd`、`shorter_arm_body.gd`、`doll_rig.gd` 三核心文件哈希未受触碰。交互调试台已更新并保持响应。
+
+## 2026-11-10 / 服装迁移续作：恢复验证链，明确饰带接触缺口
+
+- 用户暂停后要求“已迁移项目地址，对齐后继续你的工作”。确认新的游戏和Git根为 `D:/workspace/weave-and-wander`，读取新AGENTS和交接，不再向旧3D路径或独立2D工作区写入。保留所有无关脏工作树内容；上方发型日志来自并行工作，本轮不将其视为服装验收证据。
+- 补记暂停前未入本地日志的服装试验：fixed-rest（quad、抗弯12、弱引导.005、quality30、dynamic_rest=false）最终nap0主裙面自交0、身体/坐垫0、腿中心16/16，轮廓比动态静止形状候选少向上尖角；完整180帧仍47帧自交。三角模拟最终4对，quality60/collision10最终1对且中途与坐垫交叠，未采用。以上是保留下来的历史证据，本轮没有重新跑180帧模拟。
+- 暂停前协作者完成三条饰带的源面三角形绑定，保留签名径向偏移、设计信息及骨权；本轮继续审读真实实现并独立GPU复跑。A服装完整还原，身体/22骨姿态与材质不变；不能把transferred=3/unbound=0称为穿模清零。
+- 新Godot `wearing_proof_paths.gd` 将旧proof中的绝对依赖限定映射到当前项目同目录同名文件，并核对SHA；不读旧副本。新Blender `wearing_proof_paths.py` 限定输入/输出边界，新输出res://，旧scene可显式重新绑定且先原子校验所有依赖。支持坐垫SHA每次复核。Godot14项和Python8组测试通过；真实Blender拒绝旧项目输入且未留下半创建scene，新res://输入创建隔离试验场景成功。
+- 实际Godot4.7.1/RTX4060重新完成有坐垫+三饰带、无坐垫旧proof两组GPU图，exit0。新增与截图同姿态的实际三角网格导出，包含主裙面、修改过的饰带、真实躯干/双腿和变换到同坐标的真实坐垫。默认游戏未加载native试验。
+- 通过真实Blender MCP新增只读BVH层接触审计。`wearing_bound_simulation_nap0_blender_fixed_rest_bound_layers_proof_geometry_blender_layer_audit.json`：主裙面自交0、身体/坐垫交叠0；主裙面与HemRibbon/FineHemRibbon/WaistRibbon分别22/11/18对候选交叠，腰带自交1，总52。无退化三角形。BVH候选对不是穿透深度，也不是CCD；明确未通过，不隐藏饰带或更改素体来消除报告。
+- 实际查看新截图仍见腰口不整齐、裙摆粗折。现有signed offset有负值，旧shader的cloth_surface_lift随contact关闭也被取消，是下一步检查点而非已完成修复。旧四类严格层失败仍开放，本轮未冒称重跑全部生产测试。
+- Blender4.2.2由本地启动脚本恢复MCP连接，原Scene的Cube/Camera/Light未修改，未保存用户blend。迁移前内存模拟场景已不存在；当前新隔离场景仅完成输入创建验证，last_simulated_frame=0。Godot MCP项目查询/静态验证均Errno22，实际验证用CLI；未声称编辑器桥可用。
+- 冻结V20、shorter_arm_body和doll_rig的SHA再次完全一致。更新新 `Docs/HANDOFF.md`、`Docs/ACCEPTED_BODY_CLOTH.md` 和状态入口，建立新根本地 `DEVLOG.md` 索引，旧历史交接快照不改。所有测试进程均结束，没有活跃委派。目标仍未完成：先饰带/腰口层间贴合与完整过渡，再多姿态多服装/库存连续性，验收后才进默认NPC。
+
+
+## 2026-11-10 / 第 11 轮：调试台 2.0 升级（模块化素体槽位叠穿、色彩定制、形制衣袋开关控制与物理动力学预览）
+
+- 用户明确反馈：
+  1. “调试台总体ui优秀，继续保持”；
+  2. “修正部分菜单层次，衣袋可以有开关但并非所有形制有衣袋”；
+  3. “预览时，将发型、衣服槽位分清楚，支持叠穿，注意基于素体而不是锁死双圆髻+连衣裙那个小人”；
+  4. “可编辑发色、瞳色、衣服配色等参数”；
+  5. “支持预览物理，并且对预览时的各种移动操作包括角速度、预设动作作出反应”。
+- 核心功能实现与数理架构：
+  1. **纯净素体解耦（Base Mannequin Decoupling）**：
+     - 彻底消除此前调试台强制锁死 `doll.configure({"outfit": 0, "hair": 0})` 导致的乌克兰刺绣裙与双圆髻死锁问题；
+     - 新增 `_reset_doll_to_base_mannequin()`，清空发槽与服装槽，暴露纯净完整的 V20 Accepted Mannequin（`MannequinTorso`、`PelvisUnderbody`、`ArmMannequin`、`LegMannequin`，直立溜肩无驼背、圆润丰满翘臀），四肢及躯干裸露平滑无缝；
+     - 保持碰撞代理 `doll.body_contact` 实时响应，`doll.process_mode = Node.PROCESS_MODE_INHERIT`。
+  2. **模块化槽位叠穿系统（Modular Slot Layering）**：
+     - 清晰划分 6 大独立穿戴槽位：`发型槽 (Hair)`、`上装/内搭槽 (Top)`、`外搭/叠穿槽 (Outer)`、`下装槽 (Bottom)`、`头饰/帽子槽 (Headwear)`、`配饰槽 (Prop)` 以及 `独立摆件 (Figurine)`；
+     - `parametric_models_catalog.gd` 底层各形制全面升级支持 `slot_mode` 非破坏性局部槽位刷新，各槽位独立挂载 `SlotGarment_<slot>`，提供 `clear_garment_slot`、`clear_hat_slot`、`clear_prop_slot`；
+     - 支持真自由多层叠穿（如：#01 波波头 + #07 古巴领短袖衬衫 + #09 学院风V领背心 + #14 高腰百褶短裤 + #16 彝族帽 + #19 托特包），内搭领口与外搭 V 领、短裤腰带完美套穿；
+     - 提供快捷一键搭配预设：`素体 (Bare)`、`学院叠穿 (Preppy)`、`度假古巴领 (Resort Cuban)`、`背心工装裙 (Pinafore Worker)`。
+  3. **实时色彩与材质定制（Live Color Customization）**：
+     - 素体肤色/材质：ColorPickerButton + 4 种预设（粉白 Fair、自然暖白 Natural、阳光小麦 Wheat、原木素体 Beechwood），实时联动更新躯干、手脚与面部材质；
+     - 发丝发色：ColorPickerButton + 6 种预设（自然黑、栗棕、蜂蜜茶、浅金、樱花粉、雾霾蓝），瞬时更新全部发片与发旋；
+     - 瞳孔瞳色：ColorPickerButton + 5 种预设（曜石黑、琥珀棕、蓝宝石、祖母绿、紫水晶），实时更新 `BeanEye`；
+     - 服装色彩：主色（Main）、辅色/包边（Trim）、扣饰/腰带（Detail）三大配色自由拾取与全套预设。
+  4. **菜单层次重构与严谨衣袋规则（Menu Hierarchy & Pocket Rules）**：
+     - 控制面板划分为 4 大清晰逻辑面板：① 动作与物理动力学、② 模特素体与色彩定制、③ 模块化槽位叠穿、④ 当前形制专属细节；
+     - **严谨衣袋逻辑**：衣袋开关（`pocket_enabled`）仅在真正具有衣袋结构的形制（#07 古巴领衬衫胸袋、#11 针织开衫双侧贴袋、#12 围裙胸前工装袋、#14 百慕大短裤斜插袋、#19 帆布托特包外贴袋）上展示；对无衣袋形制（#08 娃娃裙、#09 V领背心、#10 水手服衬衫、#13 方领短上衣、#15 A字连衣裙、发型、帽子）严格隐藏衣袋控件，根除菜单层次混淆。
+  5. **物理动力学实时预览与交互响应（Physics Dynamics & Interactive Motion）**：
+     - 激活布料二级动力学（Secondary Motion）：提供 6 种预设动态模式（静止 Rest、待机呼吸 Idle、平稳自转 Spin、急转摆动 Snap、走步摇摆 Walk、起停冲击 Jolt）；
+     - 实时角速度控制：角速度滑动条（$\omega \in [-10.0, +10.0]\text{ rad/s}$）加快速归零按键，离心力驱动裙摆即时向外散开（$r \propto \omega^2$）与惯性向心回弹；
+     - 3D 视图交互：Shift + 左键拖拽直接旋转模特产生瞬时角速度与角加速度；
+     - 发丝物理惯性与离心摆动：发辫、高马尾、双马尾在旋转与走步时产生惯性滞后（$\Delta \theta_z \propto -\omega$）、离心上扬（$\Delta \theta_x \propto \omega^2$）与走步颠簸反应。
+- 质量验证与冻结保护：
+  - 核心素体文件 `accepted_body_v20.gd`、`shorter_arm_body.gd`、`doll_rig.gd` 冻结，哈希未受触碰；
+  - 自动化全量用例测试 8 项测试（素体还原、多槽叠穿、开衫搭配、工装搭配、色彩联动、6 种运动物理推演、套娃摆件切换、回退验证）100% 通过（exit 0）；
+  - 交互式调试台已通过 Task Scheduler 启动并在前台桌面运行（PID: 51424），响应正常。
