@@ -355,8 +355,10 @@ static func _build_thick_hair_curtain(parent: Node3D, label: String, outer_grid:
 
 
 static func build_base_scalp_cap(hair_root: Node3D, color: Color, front_phi: float = 1.02,
-		back_phi: float = 2.28, crown_scale: float = 1.02, part_x: float = 0.0) -> void:
-	# Full anatomical scalp cap covering crown, temples (in front of ears), and nape (behind ears) without any bald gaps
+		back_phi: float = 2.28, crown_scale: float = 1.02, part_x: float = 0.0,
+		expose_ears: bool = false) -> void:
+	# Full anatomical scalp cap covering crown, temples (in front of ears), and nape (behind ears) without any bald gaps.
+	# When expose_ears=true, arches cleanly above the ear root so ears emerge naturally from skull skin without clipping.
 	var vertices := PackedVector3Array()
 	var indices := PackedInt32Array()
 	var segments := 64
@@ -375,8 +377,15 @@ static func build_base_scalp_cap(hair_root: Node3D, color: Color, front_phi: flo
 			var front_blend := smoothstep(-0.15, 0.60, ca)
 			var sideburn_dip := 0.64 * smoothstep(0.45, 0.92, sa) * smoothstep(-0.05, 0.35, ca) * (1.0 - smoothstep(0.55, 0.92, ca))
 			var ear_arch_lift := -0.22 * smoothstep(0.88, 0.99, sa) * exp(-pow((ca + 0.04) / 0.16, 2.0))
+			if expose_ears:
+				var ear_dist := sqrt(pow((ca - 0.03) / 0.22, 2.0) + pow((sa - 0.96) / 0.18, 2.0))
+				var cutout := smoothstep(1.0, 0.0, ear_dist)
+				ear_arch_lift -= 0.72 * cutout
+				sideburn_dip *= (1.0 - cutout)
 			var front_hairline := front_phi + sideburn_dip + ear_arch_lift
 			var target_phi := lerpf(back_phi, front_hairline, front_blend)
+			if expose_ears and sa > 0.82 and ca > -0.20 and ca < 0.20:
+				target_phi = minf(target_phi, 1.34)
 			var phi := lerpf(0.012, target_phi, v)
 			var unit := Vector3(sin(phi) * sin(angle), cos(phi), sin(phi) * cos(angle))
 			var strand_wave := 1.0 + 0.004 * sin(angle * 14.0) * sin(phi * 3.0)
@@ -397,7 +406,7 @@ static func build_base_scalp_cap(hair_root: Node3D, color: Color, front_phi: flo
 
 static func build_front_bangs(hair_root: Node3D, color: Color, bang_bottom_y: float = 0.378,
 		arch_amount: float = 0.020, split_width: float = 0.0, split_center_x: float = 0.0,
-		side_lock_drop: float = 0.16) -> void:
+		side_lock_drop: float = 0.16, strand_params: Dictionary = {}) -> void:
 	# Volumetric 3D front bangs + cheek-framing sideburn locks that stay strictly outside forehead/brow skin
 	var cols := 40
 	var rows := 14
@@ -435,7 +444,278 @@ static func build_front_bangs(hair_root: Node3D, color: Color, bang_bottom_y: fl
 			outer_grid.append(Vector3(sin(angle) * out_rx, y, cos(angle) * out_rz))
 			inner_grid.append(Vector3(sin(angle) * min_rx, y, cos(angle) * min_rz))
 
-	_build_thick_hair_curtain(hair_root, "FrontBangs", outer_grid, inner_grid, rows, cols, color)
+	var bang_sp := strand_params
+	if bang_sp.is_empty():
+		bang_sp = _strand_params({}, "bang_", _BANG_STRAND_DEFAULTS)
+	_build_strand_locks(hair_root, "FrontBangs", outer_grid, inner_grid, rows, cols, color, bang_sp, false)
+
+
+# ============================================================================
+# HAIR STRAND / LOCK (发片) SYSTEM
+# ----------------------------------------------------------------------------
+# Every hair section (bangs, canopy/mantle, tails) is generated as a continuous
+# guide surface (outer + inner grid, rows = root->tip, cols = across the section),
+# then SPLIT into separate lock meshes ("<Section>_LockNN") that follow the
+# original guide path. Per-section parameters (flat keys with optional prefix,
+# e.g. "bang_wavy", or a nested dict params["strands"] / params["bang_strands"]):
+#   wavy          lock waviness amplitude in m (oscillates AROUND the original path)
+#   wavy_freq     waves per full lock length
+#   length_scale  lock length multiplier on top of the style's total length
+#   cut_angle     slant-cut angle in degrees (applied on top of total length)
+#   thickness     lock thickness multiplier
+#   strand_width  single lock width in m      (density part 1)
+#   strand_gap    spacing between locks in m  (density part 2, negative = overlap)
+#   tip_taper     0..0.9 narrowing of lock tips
+#   length_jitter random per-lock length variation in m
+# ============================================================================
+const _BANG_STRAND_DEFAULTS := {"strand_width": 0.040, "strand_gap": 0.0, "cut_mode": "linear",
+	"cut_span": 0.30, "length_jitter": 0.006, "tip_taper": 0.45, "wavy_freq": 1.0}
+
+const _STRAND_KEYS := ["wavy", "wavy_freq", "length_scale", "cut_angle", "thickness",
+	"strand_width", "strand_gap", "tip_taper", "length_jitter", "cut_mode", "cut_span", "head_push"]
+
+
+static func _strand_params(params: Dictionary, prefix: String, defaults: Dictionary = {}) -> Dictionary:
+	var sp := {"wavy": 0.0, "wavy_freq": 2.0, "length_scale": 1.0, "cut_angle": 0.0, "thickness": 1.0,
+		"strand_width": 0.052, "strand_gap": 0.0, "tip_taper": 0.55, "length_jitter": 0.018,
+		"cut_mode": "symmetric", "cut_span": 0.42, "head_push": true}
+	for k in defaults:
+		sp[k] = defaults[k]
+	var nested: Dictionary = params.get(prefix + "strands", {})
+	for k in _STRAND_KEYS:
+		if params.has(prefix + k):
+			sp[k] = params[prefix + k]
+		if nested.has(k):
+			sp[k] = nested[k]
+	sp["strand_width"] = clampf(float(sp["strand_width"]), 0.012, 0.20)
+	sp["strand_gap"] = clampf(float(sp["strand_gap"]), -0.5 * float(sp["strand_width"]), 0.05)
+	sp["thickness"] = clampf(float(sp["thickness"]), 0.25, 3.0)
+	sp["length_scale"] = clampf(float(sp["length_scale"]), 0.3, 1.35)
+	sp["cut_angle"] = clampf(float(sp["cut_angle"]), -60.0, 60.0)
+	sp["wavy"] = clampf(float(sp["wavy"]), 0.0, 0.06)
+	sp["tip_taper"] = clampf(float(sp["tip_taper"]), 0.0, 0.9)
+	return sp
+
+
+# Bilinear sample of a (rows+1) x (cols+1) guide grid at (t, u); t > 1 extrapolates along the last segment.
+static func _grid_sample(grid: PackedVector3Array, rows: int, cols: int, t: float, u: float, wrap_u: bool) -> Vector3:
+	var stride := cols + 1
+	u = fposmod(u, 1.0) if wrap_u else clampf(u, 0.0, 1.0)
+	var fu := u * cols
+	var c0 := clampi(int(floor(fu)), 0, cols - 1)
+	var au := fu - c0
+	if t > 1.0:
+		var q_last: Vector3 = grid[rows * stride + c0].lerp(grid[rows * stride + c0 + 1], au)
+		var q_prev: Vector3 = grid[(rows - 1) * stride + c0].lerp(grid[(rows - 1) * stride + c0 + 1], au)
+		return q_last + (q_last - q_prev) * ((t - 1.0) * rows)
+	var fr := maxf(t, 0.0) * rows
+	var r0 := clampi(int(floor(fr)), 0, rows - 1)
+	var ar := fr - r0
+	var top: Vector3 = grid[r0 * stride + c0].lerp(grid[r0 * stride + c0 + 1], au)
+	var bot: Vector3 = grid[(r0 + 1) * stride + c0].lerp(grid[(r0 + 1) * stride + c0 + 1], au)
+	return top.lerp(bot, ar)
+
+
+# Push a HeadRig-local point radially outside the head / ear / neck-shoulder envelope.
+static func _push_outside_head(p: Vector3, margin: float = 0.0) -> Vector3:
+	var ang := atan2(p.x, p.z)
+	var env := _head_neck_min_radii(p.y, ang, true)
+	var rx := maxf(0.01, env.x + margin)
+	var rz := maxf(0.01, env.y + margin)
+	var radial := sqrt(pow(p.x / rx, 2.0) + pow(p.z / rz, 2.0))
+	if radial < 1.0 and radial > 0.0001:
+		p.x /= radial
+		p.z /= radial
+	return p
+
+
+# Split a guide surface into individual hair locks. Returns the shortest lock end (in guide-t units).
+static func _build_strand_locks(parent: Node3D, label: String, outer_grid: PackedVector3Array,
+		inner_grid: PackedVector3Array, rows: int, cols: int, color: Color, sp: Dictionary,
+		wrap_u: bool = false) -> float:
+	var group := Node3D.new()
+	group.name = label
+	parent.add_child(group)
+	var stride := cols + 1
+
+	# Lock count from the real arc width of the section (measured on a lower guide row)
+	var ref_r := int(round(rows * 0.62))
+	var arc := 0.0
+	for c in cols:
+		arc += outer_grid[ref_r * stride + c].distance_to(outer_grid[ref_r * stride + c + 1])
+	var w: float = float(sp["strand_width"])
+	var g: float = float(sp["strand_gap"])
+	var n := maxi(1, int(round(arc / maxf(0.01, w + g))))
+	if not wrap_u and n < 2 and arc > w * 1.5:
+		n = 2
+	var pitch := 1.0 / float(n)
+	var fill := clampf(w / maxf(0.005, w + g), 0.2, 2.0)
+
+	var path_len := 0.0
+	var mid_c := cols / 2
+	for r in rows:
+		path_len += outer_grid[r * stride + mid_c].distance_to(outer_grid[(r + 1) * stride + mid_c])
+	path_len = maxf(0.05, path_len)
+
+	var tan_a := tan(deg_to_rad(float(sp["cut_angle"])))
+	var cut_span: float = float(sp["cut_span"])
+	var wav: float = float(sp["wavy"])
+	var freq: float = float(sp["wavy_freq"])
+	var lock_rows := maxi(12, rows)
+	var lock_cols := 4
+	var min_t_end := 9.0
+
+	for i in n:
+		var u_c := (float(i) + 0.5) * pitch
+		var h := u_c * 2.0 - 1.0
+		var dy: float
+		match str(sp["cut_mode"]):
+			"symmetric":
+				dy = tan_a * absf(h) * cut_span # e.g. A-line: front locks longer than back
+			"radial":
+				dy = tan_a * cos(u_c * TAU) * cut_span # tubes: slant across the tail cross-section
+			_:
+				dy = tan_a * h * cut_span # linear: diagonal cut from one side to the other
+		var jitter := float(sp["length_jitter"]) * sin(float(i) * 12.9898 + 4.1) * 0.5 * (1.0 + cos(float(i) * 7.31))
+		var t_end := clampf(float(sp["length_scale"]) + (dy + jitter) / path_len, 0.2, 1.4)
+		min_t_end = minf(min_t_end, t_end)
+		var half_u := pitch * fill * 0.5
+		var phase := float(i) * 2.399
+
+		var o_pts := PackedVector3Array()
+		var i_pts := PackedVector3Array()
+		for r in lock_rows + 1:
+			var lt := float(r) / lock_rows
+			var t := lt * t_end
+			var taper := 1.0 - float(sp["tip_taper"]) * smoothstep(0.70, 1.0, lt)
+			var wave_env := smoothstep(0.10, 0.45, t)
+			var wave_s := sin(TAU * freq * t + phase)
+			var wave_c := 0.5 + 0.5 * cos(TAU * freq * t + phase)
+			for c in lock_cols + 1:
+				var s := float(c) / lock_cols
+				var u := u_c + (s * 2.0 - 1.0) * half_u * taper
+				var p_in := _grid_sample(inner_grid, rows, cols, t, u, wrap_u)
+				var p_out := _grid_sample(outer_grid, rows, cols, t, u, wrap_u)
+				var pa := _grid_sample(outer_grid, rows, cols, t, u + 0.012, wrap_u)
+				var pb := _grid_sample(outer_grid, rows, cols, t, u - 0.012, wrap_u)
+				var tan_u := (pa - pb).normalized() if pa.distance_squared_to(pb) > 1e-10 else Vector3.RIGHT
+				var nrm := p_out - p_in
+				var depth := nrm.length()
+				var ndir: Vector3
+				if depth > 1e-5:
+					ndir = nrm / depth
+				else:
+					ndir = Vector3(p_out.x, 0.0, p_out.z).normalized()
+				# Waviness oscillates around the ORIGINAL guide path (sideways + slight outward lift), roots stay fixed
+				var disp := (tan_u * wave_s + ndir * 0.45 * wave_c) * wav * wave_env
+				var edge := 0.42 + 0.58 * sin(s * PI)
+				var tip_thin := 1.0 - 0.55 * smoothstep(0.80, 1.0, lt)
+				var thick := maxf(0.004, depth) * float(sp["thickness"]) * edge * tip_thin
+				var base_p := p_in + disp
+				if bool(sp["head_push"]):
+					base_p = _push_outside_head(base_p)
+				i_pts.append(base_p)
+				o_pts.append(base_p + ndir * thick)
+		var tint := 0.022 * sin(float(i) * 3.7)
+		var lock_color := color.lightened(tint) if tint > 0.0 else color.darkened(-tint)
+		_build_thick_hair_curtain(group, "%s_Lock%02d" % [label, i], o_pts, i_pts, lock_rows, lock_cols, lock_color)
+	group.set_meta("lock_count", n)
+	return min_t_end
+
+
+# Build a solid core tube under split tail locks, truncated to t_max so it never pokes past the shortest lock.
+static func _build_tube_core(parent: Node3D, label: String, core_grid: PackedVector3Array, rows: int, cols: int,
+		t_max: float, color: Color, center_ref: Vector3) -> void:
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	var c_rows := maxi(8, rows)
+	for r in c_rows + 1:
+		var t := float(r) / c_rows * clampf(t_max, 0.1, 1.0)
+		var shrink := 1.0 - 0.8 * smoothstep(0.85, 1.0, float(r) / c_rows)
+		var center := Vector3.ZERO
+		for c in cols:
+			center += _grid_sample(core_grid, rows, cols, t, float(c) / cols, true)
+		center /= float(cols)
+		for c in cols + 1:
+			var p := _grid_sample(core_grid, rows, cols, t, float(c) / cols, true)
+			vertices.append(center + (p - center) * shrink)
+	for r in c_rows:
+		for c in cols:
+			var a := r * (cols + 1) + c
+			var b := a + cols + 1
+			emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, center_ref)
+	build_mesh_instance(parent, label, vertices, compute_welded_normals(vertices, indices), indices, color.darkened(0.04))
+
+
+# Dedicated ear-front sideburn / temple locks that frame the face in front of the tragus,
+# cleanly separating the front hair from the ear so the ear root emerges naturally from bare skin.
+static func _build_ear_front_sideburns(parent: Node3D, color: Color, length: float = 0.16) -> void:
+	for side: float in [-1.0, 1.0]:
+		var rows := 8
+		var cols := 3
+		var outer_grid := PackedVector3Array()
+		var inner_grid := PackedVector3Array()
+		for r in rows + 1:
+			var t := float(r) / rows
+			# Stays strictly in front of ear (z in [0.054, 0.082], ear root is at z=0.010, tragus at z=0.040)
+			var y := lerpf(0.385, 0.385 - length, t)
+			var base_x := side * lerpf(0.262, 0.252, t)
+			var base_z := lerpf(0.082, 0.054, t)
+			for c in cols + 1:
+				var u := float(c) / cols
+				var w_x := (u - 0.5) * 0.024 * (1.0 - 0.4 * t)
+				var w_z := (u - 0.5) * 0.016
+				var p_in := Vector3(base_x + w_x * 0.3, y, base_z + w_z)
+				p_in = _push_outside_head(p_in, 0.003)
+				var normal := Vector3(p_in.x, 0.0, p_in.z).normalized()
+				var thick := 0.010 * (1.0 - 0.35 * t) * (0.6 + 0.4 * sin(u * PI))
+				var p_out := p_in + normal * thick
+				inner_grid.append(p_in)
+				outer_grid.append(p_out)
+		_build_thick_hair_curtain(parent, "SideburnLock" + ("L" if side < 0 else "R"),
+			outer_grid, inner_grid, rows, cols, color)
+
+
+# Adaptive surface-snapped hair scrunchie / tie ring
+# Wraps around a bundle axis (bundle_dir) at mount point (mount_origin),
+# resting snugly on the skull without clipping or floating.
+static func _build_adaptive_hair_tie(parent: Node3D, label: String, mount_origin: Vector3,
+		bundle_dir: Vector3, ring_radius: float, tube_radius: float, color: Color,
+		ripple_count: int = 8, ripple_amp: float = 0.14) -> MeshInstance3D:
+	var tangent := bundle_dir.normalized()
+	if tangent.length_squared() < 0.001:
+		tangent = Vector3.UP
+	var ref := Vector3.RIGHT if absf(tangent.x) < 0.85 else Vector3.UP
+	var u_axis := tangent.cross(ref).normalized()
+	var v_axis := tangent.cross(u_axis).normalized()
+
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	var ring_steps := 28
+	var tube_steps := 12
+	var center_lift := mount_origin + tangent * (tube_radius * 0.90)
+
+	for r in ring_steps + 1:
+		var theta := TAU * float(r) / ring_steps
+		var ripple := 1.0 + ripple_amp * sin(theta * float(ripple_count))
+		var r_ring := ring_radius * ripple
+		var r_dir := (u_axis * cos(theta) + v_axis * sin(theta)).normalized()
+		var p_center := center_lift + r_dir * r_ring
+
+		for t in tube_steps + 1:
+			var phi := TAU * float(t) / tube_steps
+			var tube_off := r_dir * (tube_radius * cos(phi)) + tangent * (tube_radius * sin(phi))
+			var p := p_center + tube_off
+			p = _push_outside_head(p, 0.003)
+			vertices.append(p)
+
+	for r in ring_steps:
+		for t in tube_steps:
+			var a := r * (tube_steps + 1) + t
+			var b := a + tube_steps + 1
+			emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, center_lift)
+
+	return build_mesh_instance(parent, label, vertices, compute_welded_normals(vertices, indices), indices, color)
 
 
 # #01: 齐刘海内扣波波头 (Classic Chin Bob with Bangs)
@@ -451,9 +731,10 @@ static func build_hair_01_bob(doll: Node3D, params: Dictionary = {}) -> void:
 	var bang_split: float = clampf(params.get("bang_split", 0.0), 0.0, 0.35)
 
 	build_base_scalp_cap(hair_root, color, 1.00, 2.24, crown_puff, 0.0)
-	build_front_bangs(hair_root, color, bang_y, 0.016, bang_split, 0.0, 0.17)
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, bang_y, 0.016, bang_split, 0.0, 0.17, bang_sp)
 
-	# Crown-closed 3D volumetric C-curl bob canopy (starts at crown pole at r=0 so there are NEVER top-side horns or gaps!)
+	# Crown-closed 3D volumetric C-curl bob canopy guide grid
 	var cols := 64
 	var rows := 26
 	var outer_grid := PackedVector3Array()
@@ -463,7 +744,6 @@ static func build_hair_01_bob(doll: Node3D, params: Dictionary = {}) -> void:
 
 	for r in rows + 1:
 		var t := float(r) / rows
-		# Spherical crown dome for t <= 0.34 (dy/dr = 0 at pole so zero pointy cone peak!), blending smoothly into bob bell
 		var dome_t := clampf(t / 0.34, 0.0, 1.0)
 		var dome_env := sin(dome_t * PI * 0.5)
 		var lower_t := clampf((t - 0.30) / 0.70, 0.0, 1.0)
@@ -478,7 +758,6 @@ static func build_hair_01_bob(doll: Node3D, params: Dictionary = {}) -> void:
 
 		for c in cols + 1:
 			var u := float(c) / cols
-			# Wraps from right cheek (+0.62 rad) around back (PI) to left cheek (TAU - 0.62 rad)
 			var angle := lerpf(0.62, TAU - 0.62, u)
 			var edge_fade := smoothstep(0.0, 0.10, minf(u, 1.0 - u))
 			var local_y := y + 0.025 * (1.0 - edge_fade) * lower_t
@@ -494,7 +773,9 @@ static func build_hair_01_bob(doll: Node3D, params: Dictionary = {}) -> void:
 			outer_grid.append(Vector3(sin(angle) * out_rx, local_y, cos(angle) * out_rz + z_shift))
 			inner_grid.append(Vector3(sin(angle) * in_rx, local_y, cos(angle) * in_rz + z_shift))
 
-	_build_thick_hair_curtain(hair_root, "BobCanopy", outer_grid, inner_grid, rows, cols, color)
+	var bob_sp := _strand_params(params, "bob_", {"strand_width": 0.046, "strand_gap": 0.0,
+		"tip_taper": 0.65, "cut_mode": "symmetric", "cut_span": 0.32})
+	_build_strand_locks(hair_root, "BobCanopy", outer_grid, inner_grid, rows, cols, color, bob_sp, false)
 
 
 # #02: 元气高马尾 (Perky High Ponytail)
@@ -502,64 +783,70 @@ static func build_hair_02_high_ponytail(doll: Node3D, params: Dictionary = {}) -
 	var hair_root := clear_hair_slot(doll)
 	var color: Color = params.get("color", Color(0.24, 0.17, 0.14))
 	var accent: Color = params.get("scrunchie_color", params.get("accent", Color("d96b52")))
-	var crown_height: float = clampf(params.get("crown_height", params.get("tail_height", 0.48)), 0.34, 0.58)
+	var crown_height: float = clampf(params.get("crown_height", params.get("tail_height", 0.48)), 0.36, 0.56)
 	var tail_length: float = clampf(params.get("tail_length", 0.50), 0.32, 0.72)
 	var tail_flare: float = clampf(params.get("tail_flare", 0.135), 0.08, 0.20)
 	var tail_arch: float = clampf(params.get("tail_arch", 0.15), 0.06, 0.25)
 
-	build_base_scalp_cap(hair_root, color, 1.00, 2.32, 1.02, 0.0)
-	build_front_bangs(hair_root, color, 0.382, 0.022, 0.14, 0.0, 0.18)
+	# 1. Scalp cap with ear cutout so ears emerge naturally from skull skin
+	build_base_scalp_cap(hair_root, color, 1.00, 2.32, 1.02, 0.0, true)
+	# 2. Front bangs stay neatly on forehead without dropping over ears
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, 0.382, 0.022, 0.14, 0.0, 0.04, bang_sp)
+	# 3. Dedicated ear-front sideburn locks
+	_build_ear_front_sideburns(hair_root, color, 0.15)
 
-	# Scrunchie / pleated hair tie at high back crown
-	var tie_origin := Vector3(0.0, crown_height, -0.285)
-	var tie_pts := PackedVector3Array()
-	var tie_r := PackedFloat32Array()
-	for i in 25:
-		var a := TAU * float(i) / 24.0
-		var ripple := 1.0 + 0.12 * sin(a * 8.0)
-		tie_pts.append(tie_origin + Vector3(cos(a) * 0.066 * ripple, sin(a) * 0.066 * ripple * 0.85, 0.014 * cos(a)))
-		tie_r.append(0.024)
-	add_tube(hair_root, "PonytailScrunchie", tie_pts, tie_r, accent, 12)
+	# 4. Ponytail mount point on skull surface
+	var dy := clampf((crown_height - 0.290) / 0.306, -0.92, 0.92)
+	var beta := acos(dy)
+	var mount_pos := Vector3(0.0, crown_height, -0.296 * sin(beta))
+	var n_skull := Vector3(0.0, dy / 0.306, -sin(beta) / 0.296).normalized()
+	var tail_tan := (n_skull + Vector3(0.0, 0.20, -0.40)).normalized()
 
-	# Sculpted S-curve fluted ponytail volume (stays strictly clear of back skull & shoulders)
-	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
-	var rings := 26
-	var sides := 24
+	# 5. Adaptive surface-snapped scrunchie torus
+	_build_adaptive_hair_tie(hair_root, "PonytailScrunchie", mount_pos, tail_tan, 0.062, 0.022, accent, 10, 0.14)
+
+	# 6. Sculpted fluted ponytail guide grid
+	var rings := 24
+	var cols := 16
+	var outer_grid := PackedVector3Array()
+	var inner_grid := PackedVector3Array()
+
+	var spine_pts: Array[Vector3] = []
 	for i in rings + 1:
 		var t := float(i) / rings
 		var spine := Vector3(
 			0.0,
-			tie_origin.y + tail_arch * sin(t * PI * 0.52) - tail_length * pow(t, 1.32),
-			tie_origin.z - 0.055 * t - tail_arch * 1.22 * sin(t * PI * 0.76) - 0.09 * t * t
+			mount_pos.y + tail_arch * sin(t * PI * 0.52) - tail_length * pow(t, 1.32),
+			mount_pos.z - 0.045 * t - tail_arch * 1.22 * sin(t * PI * 0.76) - 0.09 * t * t
 		)
-		var next_t := minf(1.0, t + 0.04)
-		var next_spine := Vector3(
-			0.0,
-			tie_origin.y + tail_arch * sin(next_t * PI * 0.52) - tail_length * pow(next_t, 1.32),
-			tie_origin.z - 0.055 * next_t - tail_arch * 1.22 * sin(next_t * PI * 0.76) - 0.09 * next_t * next_t
-		)
+		spine_pts.append(spine)
+
+	for i in rings + 1:
+		var t := float(i) / rings
+		var spine: Vector3 = spine_pts[i]
+		var next_spine: Vector3 = (spine_pts[i + 1] if i < rings else spine_pts[i] + Vector3.DOWN * 0.05)
 		var tangent := (next_spine - spine).normalized()
 		if tangent.length_squared() < 0.001:
 			tangent = Vector3.DOWN
 		var right := Vector3.RIGHT
 		var normal_dir := right.cross(tangent).normalized()
-		var profile_r := lerpf(0.048, tail_flare, sin(pow(t, 0.68) * PI)) * (1.0 - 0.88 * pow(t, 3.0))
-		if i == rings:
-			profile_r = 0.002
-		else:
-			profile_r = maxf(0.006, profile_r)
-		for s in sides + 1:
-			var a := TAU * float(s) / sides
-			var flute := 1.0 + 0.08 * cos(a * 6.0 + t * 2.5) * sin(t * PI)
-			var offset := right * (cos(a) * profile_r * flute) + normal_dir * (sin(a) * profile_r * 0.82 * flute)
-			vertices.append(spine + offset)
-	for i in rings:
-		for s in sides:
-			var a := i * (sides + 1) + s
-			var b := a + sides + 1
-			emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, tie_origin + Vector3(0, -0.15, -0.15))
-	build_mesh_instance(hair_root, "HighPonytailBody", vertices, compute_welded_normals(vertices, indices), indices, color)
+		var profile_r := lerpf(0.048, tail_flare, sin(pow(t, 0.68) * PI)) * (1.0 - 0.75 * pow(t, 3.0))
+		profile_r = maxf(0.010, profile_r)
+		var inner_r := profile_r * 0.72
+
+		for c in cols + 1:
+			var a := TAU * float(c) / cols
+			var flute := 1.0 + 0.08 * cos(a * 5.0 + t * 2.5) * sin(t * PI)
+			var off_out := right * (cos(a) * profile_r * flute) + normal_dir * (sin(a) * profile_r * 0.82 * flute)
+			var off_in := right * (cos(a) * inner_r) + normal_dir * (sin(a) * inner_r * 0.82)
+			outer_grid.append(spine + off_out)
+			inner_grid.append(spine + off_in)
+
+	var tail_sp := _strand_params(params, "tail_", {"strand_width": 0.042, "strand_gap": -0.004,
+		"tip_taper": 0.55, "cut_mode": "radial", "cut_span": 0.28, "wavy_freq": 1.5})
+	var min_t := _build_strand_locks(hair_root, "HighPonytail", outer_grid, inner_grid, rings, cols, color, tail_sp, true)
+	_build_tube_core(hair_root, "HighPonytailCore", inner_grid, rings, cols, min_t, color, mount_pos)
 
 
 # #03: 温柔披肩半扎长发 (Half-Up Flowing Long Hair)
@@ -575,9 +862,10 @@ static func build_hair_03_half_up_long(doll: Node3D, params: Dictionary = {}) ->
 	var crown_bun_size: float = clampf(params.get("crown_bun_size", 0.068), 0.045, 0.095)
 
 	build_base_scalp_cap(hair_root, color, 1.00, 2.24, 1.03, 0.0)
-	build_front_bangs(hair_root, color, 0.382, 0.020, 0.16, 0.0, 0.22)
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, 0.382, 0.020, 0.16, 0.0, 0.16, bang_sp)
 
-	# Crown-closed 3D volumetric flowing long hair mantle draping cleanly over & behind V20 shoulders
+	# 1. Flowing long hair mantle guide grid
 	var cols := 52
 	var rows := 30
 	var outer_grid := PackedVector3Array()
@@ -597,7 +885,7 @@ static func build_hair_03_half_up_long(doll: Node3D, params: Dictionary = {}) ->
 		var wall_thick := lerpf(0.010, 0.024, dome_env) * (1.0 - 0.35 * pow(lower_t, 2.5))
 
 		for c in cols + 1:
-			var u := float(c) / cols # 0..1 around sides & back
+			var u := float(c) / cols
 			var angle := lerpf(0.72, TAU - 0.72, u)
 			var lock_ripple := 0.008 * cos(u * PI * 12.0) * sin(lower_t * PI)
 			var local_y := y + 0.018 * cos((u - 0.5) * PI) * lower_t
@@ -609,46 +897,81 @@ static func build_hair_03_half_up_long(doll: Node3D, params: Dictionary = {}) ->
 			var in_rz := maxf(min_env.y * dome_env, base_rz - wall_thick)
 			var out_rx := maxf(in_rx + 0.009 * dome_env, base_rx)
 			var out_rz := maxf(in_rz + 0.009 * dome_env, base_rz)
-			# Smooth backward drape over shoulder blades
 			var z_drape := (-0.014 - 0.045 * smoothstep(0.15, 0.65, lower_t) + wave_z) * dome_env
 
 			outer_grid.append(Vector3(sin(angle) * out_rx, local_y, cos(angle) * out_rz + z_drape))
 			inner_grid.append(Vector3(sin(angle) * in_rx, local_y, cos(angle) * in_rz + z_drape))
 
-	_build_thick_hair_curtain(hair_root, "LongWavyMantle", outer_grid, inner_grid, rows, cols, color)
+	var mantle_sp := _strand_params(params, "mantle_", {"strand_width": 0.048, "strand_gap": 0.0,
+		"cut_mode": "symmetric", "cut_span": 0.35, "wavy": wave_amp, "wavy_freq": 2.2})
+	_build_strand_locks(hair_root, "LongWavyMantle", outer_grid, inner_grid, rows, cols, color, mantle_sp, false)
 
-	# Half-up twisted side locks meeting at back half-up bun & clasp bow
+	# 2. Continuous delicate interwoven 3-strand side braids meeting at back center
 	for side: float in [-1.0, 1.0]:
-		var lock_pts := PackedVector3Array()
-		var lock_r := PackedFloat32Array()
-		for i in 15:
-			var s := float(i) / 14.0
-			var a := lerpf(side * 1.12, side * PI, s)
-			lock_pts.append(Vector3(sin(a) * 0.314, lerpf(0.35, 0.30, s) + 0.010 * sin(s * PI * 4.0), cos(a) * 0.330 - 0.014))
-			lock_r.append(lerpf(0.026, 0.034, sin(s * PI)))
-		add_tube(hair_root, "HalfUpTwistL" if side < 0 else "HalfUpTwistR", lock_pts, lock_r, color.lightened(0.05), 10)
+		var p_start := Vector3(side * 0.258, 0.358, 0.090)
+		var p_mid := Vector3(side * 0.284, 0.334, -0.115)
+		var p_end := Vector3(side * 0.035, 0.315, -0.320)
+		var steps := 36
+		var freq := 5.0 * TAU
+		for strand in 3:
+			var strand_phase := float(strand) * TAU / 3.0
+			var pts := PackedVector3Array()
+			var rads := PackedFloat32Array()
+			for i in steps + 1:
+				var u := float(i) / steps
+				var p_guide := (1.0 - u) * (1.0 - u) * p_start + 2.0 * (1.0 - u) * u * p_mid + u * u * p_end
+				var tangent := (2.0 * (1.0 - u) * (p_mid - p_start) + 2.0 * u * (p_end - p_mid)).normalized()
+				var n_head := (p_guide - Vector3(0.0, 0.290, 0.0)).normalized()
+				var binormal := tangent.cross(n_head).normalized()
+
+				var phase := u * freq + strand_phase
+				var width := 0.016 * (1.0 - 0.25 * u)
+				var off_b := binormal * (cos(phase) * width)
+				var off_n := n_head * (sin(2.0 * phase) * 0.007 + 0.012)
+				var p_strand := p_guide + off_b + off_n
+				p_strand = _push_outside_head(p_strand, 0.004)
+				pts.append(p_strand)
+				rads.append(lerpf(0.010, 0.013, sin(u * PI)))
+			var tint := 0.04 * (float(strand) - 1.0)
+			var strand_color := color.lightened(tint) if tint > 0.0 else color.darkened(-tint)
+			add_tube(hair_root, "HalfUpBraid_%s_Strand%d" % ["L" if side < 0 else "R", strand],
+				pts, rads, strand_color, 8)
+
 		add_ellipsoid(hair_root, "HalfUpBowLoop", Vector3(side * 0.058, 0.285, -0.352), Vector3(0.052, 0.032, 0.018), accent, false, Vector3(0, 0, side * 0.25))
+
 	add_ellipsoid(hair_root, "HalfUpCrownBun", Vector3(0.0, 0.325, -0.345), Vector3(crown_bun_size, crown_bun_size * 0.88, crown_bun_size * 0.82), color.lightened(0.03))
 	add_ellipsoid(hair_root, "HalfUpBowKnot", Vector3(0.0, 0.285, -0.360), Vector3(0.024, 0.024, 0.020), accent.darkened(0.12))
 
 
-# #04: 芭蕾高丸子头 / 花苞头 (High Crown Topknot Bun)
+# #04: 芭蕾高丸子头 / 花苞头 (Topknot Bun with Crown-to-Nape Sliding Positioning)
 static func build_hair_04_topknot_bun(doll: Node3D, params: Dictionary = {}) -> void:
 	var hair_root := clear_hair_slot(doll)
 	var color: Color = params.get("color", Color(0.24, 0.17, 0.14))
 	var accent: Color = params.get("ribbon_color", params.get("accent", Color("72a498")))
 	var bun_radius: float = clampf(params.get("bun_radius", 0.142), 0.05, 0.21)
 	var raw_bh: float = params.get("bun_height", 0.115)
-	# Support both bun vertical height (0.06..0.22) and legacy crown Y coordinate (0.55..0.75)
 	var bun_v_radius: float = (raw_bh if raw_bh < 0.35 else bun_radius * 0.82)
-	var mount_y: float = (0.585 + bun_v_radius * 0.48 if raw_bh < 0.35 else clampf(raw_bh, 0.58, 0.72))
+	var bun_pos: float = clampf(params.get("bun_position", params.get("bun_pos", 0.0)), 0.0, 1.0)
 	var wisp_length: float = clampf(params.get("wisp_length", params.get("side_wisps", 0.17)), 0.08, 0.26)
 
 	build_base_scalp_cap(hair_root, color, 1.00, 2.30, 1.02, 0.0)
-	build_front_bangs(hair_root, color, 0.384, 0.022, 0.08, 0.0, wisp_length)
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, 0.384, 0.022, 0.08, 0.0, wisp_length, bang_sp)
 
-	# Helical flower-bud topknot bun seated solidly on the crown
-	var bun_center := Vector3(0.0, mount_y, -0.055)
+	# Sagittal skull trajectory: beta = 0.14 (high topknot) .. 1.95 (low nape bun)
+	var beta := lerpf(0.14, 1.95, bun_pos)
+	var mount_y := 0.290 + 0.306 * cos(beta)
+	var mount_z := -0.296 * sin(beta)
+	var mount_pos := Vector3(0.0, mount_y, mount_z)
+
+	var n_raw := Vector3(0.0, cos(beta) / 0.306, -sin(beta) / 0.296)
+	var normal_dir := n_raw.normalized()
+	var u_dir := Vector3.RIGHT
+	var v_dir := normal_dir.cross(u_dir).normalized()
+
+	var bun_center := mount_pos + normal_dir * (bun_v_radius * 0.85)
+
+	# Helical flower-bud bun oriented along surface normal
 	var vertices := PackedVector3Array()
 	var indices := PackedInt32Array()
 	var r_steps := 18
@@ -657,13 +980,13 @@ static func build_hair_04_topknot_bun(doll: Node3D, params: Dictionary = {}) -> 
 		var phi := PI * float(r) / r_steps
 		for c in c_steps + 1:
 			var theta := TAU * float(c) / c_steps
-			var twist := 1.0 + 0.065 * sin(theta * 5.0 + phi * 3.0) * sin(phi)
-			var p := Vector3(
-				sin(phi) * sin(theta) * bun_radius * twist,
-				cos(phi) * bun_v_radius,
-				sin(phi) * cos(theta) * bun_radius * twist
-			)
-			vertices.append(bun_center + p)
+			var twist := 1.0 + 0.075 * sin(theta * 5.0 + phi * 3.0) * sin(phi)
+			var p_local := u_dir * (sin(phi) * sin(theta) * bun_radius * twist) \
+				+ v_dir * (sin(phi) * cos(theta) * bun_radius * twist) \
+				+ normal_dir * (cos(phi) * bun_v_radius)
+			var p := bun_center + p_local
+			p = _push_outside_head(p, 0.002)
+			vertices.append(p)
 	for r in r_steps:
 		for c in c_steps:
 			var a := r * (c_steps + 1) + c
@@ -671,14 +994,8 @@ static func build_hair_04_topknot_bun(doll: Node3D, params: Dictionary = {}) -> 
 			emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, bun_center)
 	build_mesh_instance(hair_root, "CrownTopknotBun", vertices, compute_welded_normals(vertices, indices), indices, color)
 
-	# Braided/ribbon collar ring around the bun base
-	var ring_pts := PackedVector3Array()
-	var ring_r := PackedFloat32Array()
-	for i in 29:
-		var a := TAU * float(i) / 28.0
-		ring_pts.append(bun_center + Vector3(sin(a) * bun_radius * 0.90, -bun_v_radius * 0.48, cos(a) * bun_radius * 0.90))
-		ring_r.append(0.020)
-	add_tube(hair_root, "BunRibbonWrap", ring_pts, ring_r, accent, 10)
+	# Adaptive surface-snapped ribbon collar wrapping around bun base
+	_build_adaptive_hair_tie(hair_root, "BunRibbonWrap", mount_pos, normal_dir, bun_radius * 0.90, 0.018, accent, 14, 0.10)
 
 
 # #05: 偏分大波浪锁骨发 (Side-Parted Wavy Lob)
@@ -693,10 +1010,10 @@ static func build_hair_05_wavy_lob(doll: Node3D, params: Dictionary = {}) -> voi
 	var flip_out: float = clampf(params.get("flip_out", 0.048), 0.0, 0.10)
 
 	build_base_scalp_cap(hair_root, color, 1.00, 2.24, 1.03, part_side)
-	# Side-swept bangs parting at part_side (staying safely above eyebrows y >= 0.378)
-	build_front_bangs(hair_root, color, 0.382, 0.016, 0.22, part_side * 3.0, 0.20)
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, 0.382, 0.016, 0.22, part_side * 3.0, 0.18, bang_sp)
 
-	# Crown-closed 3D volumetric S-wave lob canopy (no top-side horns, no shoulder clipping!)
+	# Crown-closed 3D volumetric S-wave lob canopy
 	var cols := 60
 	var rows := 28
 	var outer_grid := PackedVector3Array()
@@ -733,7 +1050,9 @@ static func build_hair_05_wavy_lob(doll: Node3D, params: Dictionary = {}) -> voi
 			outer_grid.append(Vector3(sin(angle) * out_rx, y, cos(angle) * out_rz + z_shift))
 			inner_grid.append(Vector3(sin(angle) * in_rx, y, cos(angle) * in_rz + z_shift))
 
-	_build_thick_hair_curtain(hair_root, "WavyLobCanopy", outer_grid, inner_grid, rows, cols, color)
+	var lob_sp := _strand_params(params, "lob_", {"strand_width": 0.048, "strand_gap": 0.0,
+		"tip_taper": 0.55, "cut_mode": "symmetric", "cut_span": 0.36, "wavy": wave_depth, "wavy_freq": wave_freq})
+	_build_strand_locks(hair_root, "WavyLobCanopy", outer_grid, inner_grid, rows, cols, color, lob_sp, false)
 
 
 # #06: 活力双马尾 (Playful High Twin Pigtails)
@@ -741,49 +1060,74 @@ static func build_hair_06_twin_pigtails(doll: Node3D, params: Dictionary = {}) -
 	var hair_root := clear_hair_slot(doll)
 	var color: Color = params.get("color", Color(0.24, 0.17, 0.14))
 	var accent: Color = params.get("accent", Color("d87a68"))
-	var mount_y: float = clampf(params.get("mount_y", params.get("mount_height", 0.42)), 0.28, 0.54)
-	var mount_x: float = clampf(params.get("mount_x", 0.285), 0.24, 0.33)
+	var mount_y: float = clampf(params.get("mount_y", params.get("mount_height", 0.42)), 0.32, 0.52)
+	var mount_x: float = clampf(params.get("mount_x", 0.270), 0.23, 0.31)
 	var tail_length: float = clampf(params.get("tail_length", 0.48), 0.28, 0.68)
 	var bounce_flare: float = clampf(params.get("bounce_flare", 0.15), 0.08, 0.24)
 
-	build_base_scalp_cap(hair_root, color, 1.00, 2.30, 1.02, 0.0)
-	build_front_bangs(hair_root, color, 0.380, 0.020, 0.12, 0.0, 0.18)
+	# 1. Scalp cap with ear cutout so ears emerge naturally from skull skin
+	build_base_scalp_cap(hair_root, color, 1.00, 2.30, 1.02, 0.0, true)
+	# 2. Front bangs stay neatly on forehead without dropping over ears
+	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
+	build_front_bangs(hair_root, color, 0.380, 0.020, 0.12, 0.0, 0.04, bang_sp)
+	# 3. Dedicated ear-front sideburn locks
+	_build_ear_front_sideburns(hair_root, color, 0.14)
 
 	for side: float in [-1.0, 1.0]:
-		var root_pos := Vector3(side * mount_x, mount_y, -0.075)
-		# Double pom-pom hair ties
-		add_ellipsoid(hair_root, "TwinTieA", root_pos + Vector3(side * 0.012, 0.018, 0.020), Vector3(0.032, 0.032, 0.032), accent)
-		add_ellipsoid(hair_root, "TwinTieB", root_pos + Vector3(side * 0.022, -0.014, -0.014), Vector3(0.030, 0.030, 0.030), accent.lightened(0.12))
+		# Compute mount point directly on skull surface
+		var dy := clampf((mount_y - 0.290) / 0.306, -0.90, 0.90)
+		var dx := clampf(mount_x / 0.278, 0.20, 0.94)
+		var rem_z := sqrt(maxf(0.02, 1.0 - dy * dy - dx * dx))
+		var mount_pos := Vector3(side * mount_x, mount_y, -0.296 * rem_z)
+		var n_skull := Vector3(side * dx / 0.278, dy / 0.306, -rem_z / 0.296).normalized()
+		var tail_tan := (n_skull + Vector3(side * 0.35, 0.16, -0.24)).normalized()
 
-		var vertices := PackedVector3Array()
-		var indices := PackedInt32Array()
-		var rings := 24
-		var sides := 20
+		# Surface-snapped adaptive hair tie
+		_build_adaptive_hair_tie(hair_root, "TwinTie" + ("L" if side < 0 else "R"),
+			mount_pos, tail_tan, 0.046, 0.018, accent, 8, 0.12)
+
+		# Guide tube grid around arching pigtail spine
+		var rings := 22
+		var cols := 14
+		var outer_grid := PackedVector3Array()
+		var inner_grid := PackedVector3Array()
+
+		var spine_pts: Array[Vector3] = []
 		for i in rings + 1:
 			var t := float(i) / rings
-			# Arch outward beyond ears & shoulders so twin tails never clip ears or shoulders
 			var spine := Vector3(
-				root_pos.x + side * (0.045 * sin(t * PI * 0.5) + bounce_flare * sin(t * PI * 0.74) + 0.065 * t),
-				root_pos.y + 0.055 * sin(t * PI * 0.42) - tail_length * pow(t, 1.25),
-				root_pos.z - 0.045 * sin(t * PI) + 0.03 * pow(t, 2.0)
+				mount_pos.x + side * (0.042 * sin(t * PI * 0.5) + bounce_flare * sin(t * PI * 0.74) + 0.065 * t),
+				mount_pos.y + 0.055 * sin(t * PI * 0.42) - tail_length * pow(t, 1.25),
+				mount_pos.z - 0.045 * sin(t * PI) + 0.03 * pow(t, 2.0)
 			)
-			var r_rad := lerpf(0.045, 0.096, sin(pow(t, 0.68) * PI)) * (1.0 - 0.85 * pow(t, 2.8))
-			if i == rings:
-				r_rad = 0.002
-			else:
-				r_rad = maxf(0.006, r_rad)
-			for s in sides + 1:
-				var a := TAU * float(s) / sides
-				var flute := 1.0 + 0.09 * cos(a * 5.0 + t * 3.0) * sin(t * PI)
-				var offset := Vector3(cos(a) * r_rad * flute, 0.15 * sin(a) * r_rad, sin(a) * r_rad * flute)
-				vertices.append(spine + offset)
-		for i in rings:
-			for s in sides:
-				var a := i * (sides + 1) + s
-				var b := a + sides + 1
-				emit_quad_outward(vertices, indices, a, a + 1, b + 1, b, root_pos + Vector3(side * 0.1, -0.2, 0))
-		build_mesh_instance(hair_root, "TwinPigtailL" if side < 0 else "TwinPigtailR",
-			vertices, compute_welded_normals(vertices, indices), indices, color)
+			spine_pts.append(spine)
+
+		for i in rings + 1:
+			var t := float(i) / rings
+			var spine: Vector3 = spine_pts[i]
+			var next_spine: Vector3 = (spine_pts[i + 1] if i < rings else spine_pts[i] + Vector3(side * 0.02, -0.05, 0))
+			var tangent := (next_spine - spine).normalized()
+			if tangent.length_squared() < 0.001:
+				tangent = Vector3.DOWN
+			var right := Vector3.RIGHT
+			var normal_dir := right.cross(tangent).normalized()
+			var profile_r := lerpf(0.042, 0.092, sin(pow(t, 0.68) * PI)) * (1.0 - 0.75 * pow(t, 2.8))
+			profile_r = maxf(0.010, profile_r)
+			var inner_r := profile_r * 0.72
+
+			for c in cols + 1:
+				var a := TAU * float(c) / cols
+				var flute := 1.0 + 0.08 * cos(a * 4.0 + t * 2.5) * sin(t * PI)
+				var off_out := right * (cos(a) * profile_r * flute) + normal_dir * (sin(a) * profile_r * 0.82 * flute)
+				var off_in := right * (cos(a) * inner_r) + normal_dir * (sin(a) * inner_r * 0.82)
+				outer_grid.append(spine + off_out)
+				inner_grid.append(spine + off_in)
+
+		var pig_sp := _strand_params(params, "pigtail_", {"strand_width": 0.038, "strand_gap": -0.003,
+			"tip_taper": 0.55, "cut_mode": "radial", "cut_span": 0.25})
+		var label := "TwinPigtail" + ("L" if side < 0 else "R")
+		var min_t := _build_strand_locks(hair_root, label, outer_grid, inner_grid, rings, cols, color, pig_sp, true)
+		_build_tube_core(hair_root, label + "Core", inner_grid, rings, cols, min_t, color, mount_pos)
 
 
 

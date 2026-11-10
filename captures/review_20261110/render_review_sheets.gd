@@ -18,6 +18,8 @@ func _run_all_captures() -> void:
 	await _render_sheet_04_hats_scarf_tote()
 	await _render_sheet_05_matryoshka_and_souvenirs()
 	await _render_sheet_00_master_overview()
+	for _i in 10:
+		await process_frame
 
 	print("[ReviewCapture] All sheets rendered successfully!")
 	quit()
@@ -162,6 +164,7 @@ func _make_card_viewport(grid: Control, width: int, height: int, badge_id: Strin
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(hbox)
 
 	var badge := PanelContainer.new()
@@ -184,6 +187,7 @@ func _make_card_viewport(grid: Control, width: int, height: int, badge_id: Strin
 
 	var title_box := VBoxContainer.new()
 	title_box.add_theme_constant_override("separation", 1)
+	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(title_box)
 
 	var t_lbl := Label.new()
@@ -191,6 +195,8 @@ func _make_card_viewport(grid: Control, width: int, height: int, badge_id: Strin
 	t_lbl.add_theme_font_override("font", ChineseFont)
 	t_lbl.add_theme_font_size_override("font_size", 16)
 	t_lbl.add_theme_color_override("font_color", Color(0.98, 0.96, 0.92))
+	t_lbl.clip_text = true
+	t_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_box.add_child(t_lbl)
 
 	var s_lbl := Label.new()
@@ -198,6 +204,8 @@ func _make_card_viewport(grid: Control, width: int, height: int, badge_id: Strin
 	s_lbl.add_theme_font_override("font", ChineseFont)
 	s_lbl.add_theme_font_size_override("font_size", 12)
 	s_lbl.add_theme_color_override("font_color", Color(0.80, 0.84, 0.88))
+	s_lbl.clip_text = true
+	s_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_box.add_child(s_lbl)
 
 	var vp_cont := SubViewportContainer.new()
@@ -289,8 +297,8 @@ func _save_sheet_viewport(main_vp: SubViewport, filename: String) -> void:
 	await process_frame
 	var img := main_vp.get_texture().get_image()
 	var full_path := ProjectSettings.globalize_path(OUT_DIR + "/" + filename)
-	img.save_png(full_path)
-	print("[ReviewCapture] Saved: ", full_path)
+	var err := img.save_png(full_path)
+	print("[ReviewCapture] Saved (err=", err, "): ", full_path)
 	main_vp.queue_free()
 	await process_frame
 
@@ -307,68 +315,68 @@ func _render_sheet_01_hairstyles() -> void:
 	var configs := [
 		{
 			"id": "#01",
-			"title": "齐刘海内扣波波头 (Classic Chin Bob)",
-			"sub": "可调: length(发长) / curl_in(内扣弧度) / bang_split(空气刘海分缝)",
+			"title": "齐刘海内扣波波头 (Classic Chin Bob Remake) — 分片发束 + 内扣C卷 + 空气刘海",
+			"sub": "发片参数: bob_length(总长) / bob_cut_angle(斜切A字角) / bob_strand_width(单缕宽) / bob_wavy(波浪幅度)",
 			"builder": "build_hair_01_bob",
 			"color1": Color(0.22, 0.16, 0.14),
-			"params1": {"length": 0.25, "curl_in": 0.048, "bang_split": 0.12},
+			"params1": {"bob_length": 0.28, "curl_in": 0.055, "bob_strand_width": 0.046, "bang_split": 0.12},
 			"color2": Color(0.46, 0.28, 0.20),
-			"params2": {"length": 0.34, "curl_in": 0.072, "bang_split": 0.45}
+			"params2": {"bob_length": 0.36, "bob_cut_angle": 18.0, "bob_strand_width": 0.058, "bob_wavy": 0.015, "bang_split": 0.40}
 		},
 		{
 			"id": "#02",
-			"title": "元气高马尾 (Bouncy High Ponytail)",
-			"sub": "可调: tail_height(扎发高度) / tail_length(马尾长) / tail_flare(蓬松度)",
+			"title": "元气高马尾 (Perky High Ponytail Remake) — 耳廓避让+耳前鬓角分片+自适应贴合发圈+马尾分片束",
+			"sub": "分片参数: tail_height(扎发高度) / tail_length(长度) / tail_cut_angle(发尾斜切) / tail_wavy(波浪发片) / 自适应发圈紧密贴合",
 			"builder": "build_hair_02_high_ponytail",
 			"color1": Color(0.28, 0.18, 0.14),
-			"params1": {"tail_height": 0.46, "tail_length": 0.44, "tail_flare": 0.13},
+			"params1": {"tail_height": 0.46, "tail_length": 0.44, "tail_flare": 0.13, "tail_strand_width": 0.042},
 			"color2": Color(0.15, 0.15, 0.18),
-			"params2": {"tail_height": 0.52, "tail_length": 0.56, "tail_flare": 0.18, "scrunchie_color": Color(0.24, 0.48, 0.68)}
+			"params2": {"tail_height": 0.52, "tail_length": 0.58, "tail_cut_angle": 25.0, "tail_wavy": 0.022, "scrunchie_color": Color(0.24, 0.48, 0.68)}
 		},
 		{
 			"id": "#03",
-			"title": "温柔披肩半扎长发 (Half-Up Long Straight)",
-			"sub": "可调: length(披发长度) / back_spread(发尾扇形展开) / crown_bun_size(半扎丸子)",
+			"title": "温柔披肩半扎长发 (Half-Up Flowing Hair Remake) — 精致三股交织连续发辫 + 披发分片波浪 + 蝴蝶结发扣",
+			"sub": "发片/发辫: 连续三股编织(3 strands interwoven) / mantle_wavy(波浪) / mantle_strand_width(分片宽度) / crown_bun_size(丸子尺寸)",
 			"builder": "build_hair_03_half_up_long",
 			"color1": Color(0.32, 0.22, 0.17),
-			"params1": {"length": 0.54, "back_spread": 0.10, "crown_bun_size": 0.064},
+			"params1": {"length": 0.54, "mantle_wavy": 0.024, "mantle_strand_width": 0.048, "crown_bun_size": 0.064},
 			"color2": Color(0.58, 0.38, 0.24),
-			"params2": {"length": 0.68, "back_spread": 0.16, "crown_bun_size": 0.082}
+			"params2": {"length": 0.70, "mantle_wavy": 0.038, "mantle_cut_angle": 15.0, "mantle_strand_width": 0.060, "crown_bun_size": 0.082}
 		},
 		{
 			"id": "#04",
-			"title": "芭蕾高丸子头/花苞头 (Topknot Ballet Bun)",
-			"sub": "可调: bun_radius(花苞尺寸) / bun_height(花苞高度) / side_wisps(耳侧碎发长)",
+			"title": "芭蕾花苞丸子头 (Ballet Topknot Bun Remake) — 支持头顶到脑后全贴合滑动 (高丸子~低发髻)",
+			"sub": "核心参数: bun_position(0.0=头顶高丸子 ~ 0.5=中丸子 ~ 0.85=脑后低发髻) / bun_radius(丸子尺寸) / 自适应发圈紧密贴合",
 			"builder": "build_hair_04_topknot_bun",
 			"color1": Color(0.20, 0.15, 0.13),
-			"params1": {"bun_radius": 0.125, "bun_height": 0.105, "side_wisps": 0.21},
+			"params1": {"bun_position": 0.0, "bun_radius": 0.130, "bun_height": 0.110, "side_wisps": 0.20},
 			"color2": Color(0.48, 0.24, 0.22),
-			"params2": {"bun_radius": 0.155, "bun_height": 0.130, "side_wisps": 0.30, "ribbon_color": Color(0.92, 0.82, 0.52)}
+			"params2": {"bun_position": 0.85, "bun_radius": 0.145, "bun_height": 0.120, "side_wisps": 0.28, "ribbon_color": Color(0.92, 0.82, 0.52)}
 		},
 		{
 			"id": "#05",
-			"title": "偏分大波浪锁骨发 (Side-Part Wavy Lob)",
-			"sub": "可调: length(锁骨发长) / wave_amp(波浪振幅) / wave_freq(波浪频率)",
+			"title": "偏分大波浪锁骨发 (Side-Part Wavy Lob Remake) — 分片S波浪发束 + 翘尾 + 偏分空气刘海",
+			"sub": "发片参数: lob_length(长短) / wave_depth(波浪深度) / lob_cut_angle(斜切角) / lob_strand_width(缕宽) / flip_out(外翻)",
 			"builder": "build_hair_05_wavy_lob",
 			"color1": Color(0.38, 0.23, 0.17),
-			"params1": {"length": 0.40, "wave_amp": 0.032, "wave_freq": 3.0},
+			"params1": {"length": 0.40, "wave_depth": 0.032, "wave_freq": 2.6, "lob_strand_width": 0.048},
 			"color2": Color(0.74, 0.54, 0.34),
-			"params2": {"length": 0.52, "wave_amp": 0.046, "wave_freq": 4.0}
+			"params2": {"length": 0.52, "wave_depth": 0.048, "wave_freq": 3.4, "lob_cut_angle": 20.0, "flip_out": 0.065}
 		},
 		{
 			"id": "#06",
-			"title": "活力双马尾 (Twin Pigtails)",
-			"sub": "可调: tail_length(双马尾长) / mount_height(扎位高低) / bounce_flare(外翘弧度)",
+			"title": "活力双马尾 (Twin Pigtails Remake) — 耳廓避让+耳前鬓角分片+双侧自适应发圈+马尾分片束",
+			"sub": "分片参数: mount_height(扎发高度) / tail_length(长度) / pigtail_cut_angle(斜切角) / pigtail_wavy(波浪) / 耳前耳后完全分片",
 			"builder": "build_hair_06_twin_pigtails",
 			"color1": Color(0.25, 0.17, 0.15),
-			"params1": {"tail_length": 0.44, "mount_height": 0.38, "bounce_flare": 0.15},
+			"params1": {"mount_height": 0.38, "tail_length": 0.44, "bounce_flare": 0.15, "pigtail_strand_width": 0.038},
 			"color2": Color(0.62, 0.34, 0.28),
-			"params2": {"tail_length": 0.56, "mount_height": 0.43, "bounce_flare": 0.21, "accent": Color(0.28, 0.54, 0.48)}
+			"params2": {"mount_height": 0.44, "tail_length": 0.56, "pigtail_cut_angle": 22.0, "pigtail_wavy": 0.020, "accent": Color(0.28, 0.54, 0.48)}
 		}
 	]
 
 	for cfg in configs:
-		var vp := _make_card_viewport(grid, 620, 535, cfg["id"], cfg["title"], cfg["sub"])
+		var vp := _make_card_viewport(grid, 614, 535, cfg["id"], cfg["title"], cfg["sub"])
 		var studio := _create_studio_world(vp)
 
 		var cam := Camera3D.new()
@@ -546,7 +554,7 @@ func _render_sheet_03_basic_patterns() -> void:
 	]
 
 	for cfg in configs:
-		var vp := _make_card_viewport(grid, 620, 535, cfg["id"], cfg["title"], cfg["sub"])
+		var vp := _make_card_viewport(grid, 614, 535, cfg["id"], cfg["title"], cfg["sub"])
 		var studio := _create_studio_world(vp)
 
 		var cam := Camera3D.new()
