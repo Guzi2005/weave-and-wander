@@ -472,15 +472,23 @@ const _BANG_STRAND_DEFAULTS := {"strand_width": 0.040, "strand_gap": 0.0, "cut_m
 	"cut_span": 0.30, "length_jitter": 0.006, "tip_taper": 0.45, "wavy_freq": 1.0}
 
 const _STRAND_KEYS := ["wavy", "wavy_freq", "length_scale", "cut_angle", "thickness",
-	"strand_width", "strand_gap", "tip_taper", "length_jitter", "cut_mode", "cut_span", "head_push"]
+	"strand_width", "strand_gap", "tip_taper", "length_jitter", "cut_mode", "cut_span", "head_push", "split"]
 
 
 static func _strand_params(params: Dictionary, prefix: String, defaults: Dictionary = {}) -> Dictionary:
 	var sp := {"wavy": 0.0, "wavy_freq": 2.0, "length_scale": 1.0, "cut_angle": 0.0, "thickness": 1.0,
 		"strand_width": 0.052, "strand_gap": 0.0, "tip_taper": 0.55, "length_jitter": 0.018,
-		"cut_mode": "symmetric", "cut_span": 0.42, "head_push": true}
+		"cut_mode": "symmetric", "cut_span": 0.42, "head_push": true, "split": true}
 	for k in defaults:
 		sp[k] = defaults[k]
+	if params.has("split"):
+		sp["split"] = bool(params["split"])
+	if params.has("split_strands"):
+		sp["split"] = bool(params["split_strands"])
+	if params.has(prefix + "split"):
+		sp["split"] = bool(params[prefix + "split"])
+	if params.has(prefix + "split_strands"):
+		sp["split"] = bool(params[prefix + "split_strands"])
 	var nested: Dictionary = params.get(prefix + "strands", {})
 	for k in _STRAND_KEYS:
 		if params.has(prefix + k):
@@ -536,6 +544,13 @@ static func _build_strand_locks(parent: Node3D, label: String, outer_grid: Packe
 	var group := Node3D.new()
 	group.name = label
 	parent.add_child(group)
+
+	if not bool(sp.get("split", true)):
+		# Backward-compatibility: returns exact original seamless solid curtain mesh
+		_build_thick_hair_curtain(group, label + "_Solid", outer_grid, inner_grid, rows, cols, color)
+		group.set_meta("lock_count", 1)
+		return 1.0
+
 	var stride := cols + 1
 
 	# Lock count from the real arc width of the section (measured on a lower guide row)
@@ -788,13 +803,16 @@ static func build_hair_02_high_ponytail(doll: Node3D, params: Dictionary = {}) -
 	var tail_flare: float = clampf(params.get("tail_flare", 0.135), 0.08, 0.20)
 	var tail_arch: float = clampf(params.get("tail_arch", 0.15), 0.06, 0.25)
 
+	var expose_ears: bool = bool(params.get("expose_ears", true))
 	# 1. Scalp cap with ear cutout so ears emerge naturally from skull skin
-	build_base_scalp_cap(hair_root, color, 1.00, 2.32, 1.02, 0.0, true)
+	build_base_scalp_cap(hair_root, color, 1.00, 2.32, 1.02, 0.0, expose_ears)
 	# 2. Front bangs stay neatly on forehead without dropping over ears
 	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
-	build_front_bangs(hair_root, color, 0.382, 0.022, 0.14, 0.0, 0.04, bang_sp)
+	var bang_drop: float = (0.04 if expose_ears else 0.18)
+	build_front_bangs(hair_root, color, 0.382, 0.022, 0.14, 0.0, bang_drop, bang_sp)
 	# 3. Dedicated ear-front sideburn locks
-	_build_ear_front_sideburns(hair_root, color, 0.15)
+	if expose_ears:
+		_build_ear_front_sideburns(hair_root, color, 0.15)
 
 	# 4. Ponytail mount point on skull surface
 	var dy := clampf((crown_height - 0.290) / 0.306, -0.92, 0.92)
@@ -906,36 +924,51 @@ static func build_hair_03_half_up_long(doll: Node3D, params: Dictionary = {}) ->
 		"cut_mode": "symmetric", "cut_span": 0.35, "wavy": wave_amp, "wavy_freq": 2.2})
 	_build_strand_locks(hair_root, "LongWavyMantle", outer_grid, inner_grid, rows, cols, color, mantle_sp, false)
 
-	# 2. Continuous delicate interwoven 3-strand side braids meeting at back center
-	for side: float in [-1.0, 1.0]:
-		var p_start := Vector3(side * 0.258, 0.358, 0.090)
-		var p_mid := Vector3(side * 0.284, 0.334, -0.115)
-		var p_end := Vector3(side * 0.035, 0.315, -0.320)
-		var steps := 36
-		var freq := 5.0 * TAU
-		for strand in 3:
-			var strand_phase := float(strand) * TAU / 3.0
-			var pts := PackedVector3Array()
-			var rads := PackedFloat32Array()
-			for i in steps + 1:
-				var u := float(i) / steps
-				var p_guide := (1.0 - u) * (1.0 - u) * p_start + 2.0 * (1.0 - u) * u * p_mid + u * u * p_end
-				var tangent := (2.0 * (1.0 - u) * (p_mid - p_start) + 2.0 * u * (p_end - p_mid)).normalized()
-				var n_head := (p_guide - Vector3(0.0, 0.290, 0.0)).normalized()
-				var binormal := tangent.cross(n_head).normalized()
+	# 2. Side braids: interwoven 3-strand braid by default, or simple smooth twist fallback (braid_style: "simple")
+	var braid_mode: String = String(params.get("braid_style", "three_strand"))
+	var three_strand: bool = bool(params.get("three_strand_braid", braid_mode != "simple"))
 
-				var phase := u * freq + strand_phase
-				var width := 0.016 * (1.0 - 0.25 * u)
-				var off_b := binormal * (cos(phase) * width)
-				var off_n := n_head * (sin(2.0 * phase) * 0.007 + 0.012)
-				var p_strand := p_guide + off_b + off_n
-				p_strand = _push_outside_head(p_strand, 0.004)
-				pts.append(p_strand)
-				rads.append(lerpf(0.010, 0.013, sin(u * PI)))
-			var tint := 0.04 * (float(strand) - 1.0)
-			var strand_color := color.lightened(tint) if tint > 0.0 else color.darkened(-tint)
-			add_tube(hair_root, "HalfUpBraid_%s_Strand%d" % ["L" if side < 0 else "R", strand],
-				pts, rads, strand_color, 8)
+	for side: float in [-1.0, 1.0]:
+		if not three_strand:
+			# Backward-compatibility: original simple smooth twist tube
+			var lock_pts := PackedVector3Array()
+			var lock_r := PackedFloat32Array()
+			for i in 15:
+				var s := float(i) / 14.0
+				var a := lerpf(side * 1.12, side * PI, s)
+				lock_pts.append(Vector3(sin(a) * 0.314, lerpf(0.35, 0.30, s) + 0.010 * sin(s * PI * 4.0), cos(a) * 0.330 - 0.014))
+				lock_r.append(lerpf(0.026, 0.034, sin(s * PI)))
+			add_tube(hair_root, "HalfUpTwistL" if side < 0 else "HalfUpTwistR", lock_pts, lock_r, color.lightened(0.05), 10)
+		else:
+			# Continuous delicate interwoven 3-strand side braids meeting at back center
+			var p_start := Vector3(side * 0.258, 0.358, 0.090)
+			var p_mid := Vector3(side * 0.284, 0.334, -0.115)
+			var p_end := Vector3(side * 0.035, 0.315, -0.320)
+			var steps := 36
+			var freq := 5.0 * TAU
+			for strand in 3:
+				var strand_phase := float(strand) * TAU / 3.0
+				var pts := PackedVector3Array()
+				var rads := PackedFloat32Array()
+				for i in steps + 1:
+					var u := float(i) / steps
+					var p_guide := (1.0 - u) * (1.0 - u) * p_start + 2.0 * (1.0 - u) * u * p_mid + u * u * p_end
+					var tangent := (2.0 * (1.0 - u) * (p_mid - p_start) + 2.0 * u * (p_end - p_mid)).normalized()
+					var n_head := (p_guide - Vector3(0.0, 0.290, 0.0)).normalized()
+					var binormal := tangent.cross(n_head).normalized()
+
+					var phase := u * freq + strand_phase
+					var width := 0.016 * (1.0 - 0.25 * u)
+					var off_b := binormal * (cos(phase) * width)
+					var off_n := n_head * (sin(2.0 * phase) * 0.007 + 0.012)
+					var p_strand := p_guide + off_b + off_n
+					p_strand = _push_outside_head(p_strand, 0.004)
+					pts.append(p_strand)
+					rads.append(lerpf(0.010, 0.013, sin(u * PI)))
+				var tint := 0.04 * (float(strand) - 1.0)
+				var strand_color := color.lightened(tint) if tint > 0.0 else color.darkened(-tint)
+				add_tube(hair_root, "HalfUpBraid_%s_Strand%d" % ["L" if side < 0 else "R", strand],
+					pts, rads, strand_color, 8)
 
 		add_ellipsoid(hair_root, "HalfUpBowLoop", Vector3(side * 0.058, 0.285, -0.352), Vector3(0.052, 0.032, 0.018), accent, false, Vector3(0, 0, side * 0.25))
 
@@ -1065,13 +1098,16 @@ static func build_hair_06_twin_pigtails(doll: Node3D, params: Dictionary = {}) -
 	var tail_length: float = clampf(params.get("tail_length", 0.48), 0.28, 0.68)
 	var bounce_flare: float = clampf(params.get("bounce_flare", 0.15), 0.08, 0.24)
 
+	var expose_ears: bool = bool(params.get("expose_ears", true))
 	# 1. Scalp cap with ear cutout so ears emerge naturally from skull skin
-	build_base_scalp_cap(hair_root, color, 1.00, 2.30, 1.02, 0.0, true)
+	build_base_scalp_cap(hair_root, color, 1.00, 2.30, 1.02, 0.0, expose_ears)
 	# 2. Front bangs stay neatly on forehead without dropping over ears
 	var bang_sp := _strand_params(params, "bang_", _BANG_STRAND_DEFAULTS)
-	build_front_bangs(hair_root, color, 0.380, 0.020, 0.12, 0.0, 0.04, bang_sp)
+	var bang_drop: float = (0.04 if expose_ears else 0.16)
+	build_front_bangs(hair_root, color, 0.380, 0.020, 0.12, 0.0, bang_drop, bang_sp)
 	# 3. Dedicated ear-front sideburn locks
-	_build_ear_front_sideburns(hair_root, color, 0.14)
+	if expose_ears:
+		_build_ear_front_sideburns(hair_root, color, 0.14)
 
 	for side: float in [-1.0, 1.0]:
 		# Compute mount point directly on skull surface
