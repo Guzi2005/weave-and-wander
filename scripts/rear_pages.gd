@@ -45,15 +45,23 @@ func build() -> void:
 		_box(floor_node, "Lane", Vector3(43.2, .07, 7.4), Vector3(0, -.01, 3.1), Color("b5c4bd"), 2)
 		for index in 7:
 			var facade := _group("BackstreetHouse%d" % index, Vector3(-18 + index * 6, 0, -.6))
-			var height := 4.2 + (index % 3) * .6
-			var tone: Color = [MINT, PINK, Color("ddca9b"), BLUE][index % 4]
-			_box(facade, "PaperWall", Vector3(5.7, height, .2), Vector3(0, height * .5, 0), tone)
-			_shape(facade, "FoldedGable", PackedVector2Array([Vector2(-3, height), Vector2(0, height + 1.8), Vector2(3, height)]), Vector3(0, 0, .05), Color("859c9b"))
-			_box(facade, "Door", Vector3(1.15, 2.45, .09), Vector3(-1.45, 1.225, .16), GREEN)
-			for x in [.1, 1.85]:
-				_box(facade, "WindowFrame", Vector3(1.35, 1.65, .09), Vector3(x, 2.45, .15), WHITE)
-				_box(facade, "WindowGlass", Vector3(1.10, 1.38, .07), Vector3(x, 2.45, .23), Color("8fb8bd"))
-				_box(facade, "Mullion", Vector3(.06, 1.38, .08), Vector3(x, 2.45, .28), WHITE)
+			var model: Node3D = load("res://assets/street_vendor/paper_textile_shop.glb").instantiate()
+			model.name = "FoldedCardShopfront"
+			facade.add_child(model)
+			var sign := Label3D.new()
+			sign.name = "PrintedShopSign"
+			sign.text = ["布 庄", "纸 墨", "针 线", "织 物", "茶 铺", "花 房", "染 坊"][index]
+			# Label3D is not a fold shader mesh: apply the rear-page presentation offset.
+			sign.position = Vector3(0,4.10,16.255)
+			sign.font_size = 64
+			sign.pixel_size = .007
+			sign.modulate = Color("eee2b6")
+			sign.outline_size = 0
+			facade.add_child(sign)
+		for row in 8:
+			for col in 37:
+				var paver := _box(floor_node,"Stone",Vector3(1.08,.045,.68),Vector3(-20.9+col*1.15+(.5 if row%2 else 0),.045,.4+row*.74),[Color("b9b7a5"),Color("c6c3b1"),Color("aeb3a5")][(row+col)%3])
+				paver.rotation.y = sin(float(row*37+col))*.018
 		for i in 9:
 			var plant := _group("PaperShrub%d" % i, Vector3(-20 + i * 5, 0, 1.2))
 			_box(plant, "Planter", Vector3(1.6, .65, 1), Vector3(0, .325, 0), Color("ab7d79"))

@@ -1,6 +1,7 @@
 extends SceneTree
 const Braid = preload("res://components/path_braid.gd")
 const Flat = preload("res://scripts/doll_costume_material.gd")
+const WikiPaths = preload("res://tools/wiki_paths.gd")
 var shots: Array[Dictionary] = []
 const STYLES = [
 	["legacy-single","01  单圈盘旋 · 保留旧版","通用节点样式；历史实现保留，不标为民族志发式。"],
@@ -42,8 +43,8 @@ func _run() -> void:
 	grid.add_theme_constant_override("v_separation",18)
 	column.add_child(grid)
 	var entries: Array = []
-	var out := "res://tools/ww-wiki/public/assets/node-styles"
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
+	var out := WikiPaths.public_assets_dir().path_join("node-styles")
+	DirAccess.make_dir_recursive_absolute(out)
 	for entry in STYLES:
 		var recipe: Braid = load("res://assets/collections/node_styles/"+entry[0]+".tres")
 		var cell := VBoxContainer.new()
@@ -52,6 +53,7 @@ func _run() -> void:
 		var viewport := SubViewport.new()
 		viewport.size = Vector2i(972,650)
 		viewport.own_world_3d = true
+		viewport.transparent_bg = true
 		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		viewport.msaa_3d = Viewport.MSAA_4X
 		root.add_child(viewport)
@@ -105,7 +107,7 @@ func _run() -> void:
 	for tick in 12: await process_frame
 	await RenderingServer.frame_post_draw
 	for shot in shots:
-		shot.viewport.get_texture().get_image().save_png(ProjectSettings.globalize_path(shot.file))
-	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(out+"/comparison.png"))
+		shot.viewport.get_texture().get_image().save_png(shot.file)
+	root.get_texture().get_image().save_png(out+"/comparison.png")
 	print("BRAID_STYLE_GALLERY_PASS six rendered recipes + comparison + manifest")
 	quit()

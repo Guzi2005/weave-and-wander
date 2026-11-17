@@ -5,6 +5,7 @@ uniform vec3 fold_origin = vec3(0.0);
 uniform bool fold_floor = false;
 uniform bool fold_card = false;
 uniform bool fold_leaf = false;
+uniform vec3 stage_offset = vec3(0.0);
 
 void fold_paper(inout vec3 vertex, inout vec3 normal, mat4 model) {
 	if (!fold_enabled) return;
@@ -28,6 +29,7 @@ void fold_paper(inout vec3 vertex, inout vec3 normal, mat4 model) {
 		n = vec3(n.x, n.y * cos(leaf_angle) - n.z * sin(leaf_angle), n.y * sin(leaf_angle) + n.z * cos(leaf_angle));
 	}
 	world.y -= closed * 0.30;
+	world += stage_offset;
 	vertex = (inverse(model) * vec4(world, 1.0)).xyz;
 	normal = normalize(inverse(mat3(model)) * n);
 }

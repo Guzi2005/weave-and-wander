@@ -9,7 +9,6 @@ var _viewport: SubViewport
 var _camera: Camera3D
 var _surface: MeshInstance3D
 var reflection_enabled := true
-var _refresh_in := 0.0
 
 
 func configure(size: Vector2) -> void:
@@ -19,6 +18,8 @@ func configure(size: Vector2) -> void:
 
 
 func _ready() -> void:
+	# Follow the view controller (priority 200) in the same frame.
+	process_priority = 210
 	add_to_group("shop_mirrors")
 	_build()
 
@@ -58,11 +59,9 @@ func _build() -> void:
 	add_child(_surface)
 
 
-func _process(delta: float) -> void:
-	_refresh_in -= delta
-	if _refresh_in > 0.0:
-		return
-	_refresh_in = 1.0 / 12.0
+func _process(_delta: float) -> void:
+	# Live fitting-room reflection: refresh every visible frame, not at 12 Hz.
+	# Street glass overrides this method and retains its staggered cadence.
 	update_reflection()
 
 

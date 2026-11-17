@@ -1,4 +1,4 @@
-extends "res://scripts/volume_doll.gd"
+extends "res://scripts/game_body_doll.gd"
 
 const Garment = preload("res://scripts/garment_item.gd")
 const Definition = preload("res://scripts/garment_definition.gd")
@@ -14,25 +14,6 @@ var carrying := false
 var wearing := false
 var _own_visibility: Dictionary = {}
 var shopping_bag: Node3D
-
-
-func _build_volume_body() -> void:
-	super()
-	# Customers need actual skin underneath short sleeves and open necklines.
-	# These meshes belong to the wearer, never to an inventory garment.
-	var skin_color: Color = SKIN_TONES[skin_index]
-	for index in arms.size():
-		var data: Dictionary = preload("res://components/basic_garment.gd").bare_arm(-1.0 if index == 0 else 1.0)
-		var part := _mesh(arms[index], "CustomerArmSkin", data.vertices, data.normals, data.indices, skin_color)
-		part.set_meta("garment_slot", "")
-		part.set_meta("everyday_skin", "top")
-		part.hide()
-	for leg in legs:
-		var calf := _lathe(leg,"CustomerLegSkin",[Vector3(-.95,.053,.060),Vector3(-.86,.057,.065),Vector3(-.65,.074,.081),Vector3(-.49,.081,.085),Vector3(-.40,.075,.079),Vector3(-.28,.088,.092),Vector3(-.12,.092,.098)],skin_color,16)
-		calf.position.z = .045
-		calf.set_meta("garment_slot", "")
-		calf.set_meta("everyday_skin", "bottom")
-		calf.hide()
 
 
 func _keep_covered_legs() -> bool:
@@ -148,6 +129,7 @@ func _update_puppet_motion(delta: float) -> void:
 	if is_instance_valid(shopping_bag):
 		rig._rest_arm("R",Vector3(.64,1.43,.22),Vector3(.66,1.65,-.08),1.0)
 	apply_reaches()
+	if body_contact != null: body_contact.update()
 	if is_instance_valid(shopping_bag): shopping_bag.update_attachment()
 
 

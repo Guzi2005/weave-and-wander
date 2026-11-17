@@ -3,7 +3,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "tools/ww-wiki/public/assets/motifs"
+OUT = ROOT.parent / "W&W Wiki/public/assets/motifs"
 OUT.mkdir(parents=True, exist_ok=True)
 for source, box, name in [
     ("back.png", (330, 620, 870, 1160), "stripe-overskirt.png"),

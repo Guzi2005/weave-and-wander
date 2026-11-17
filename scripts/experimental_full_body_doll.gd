@@ -1,0 +1,296 @@
+class_name ExperimentalFullBodyDoll
+extends "res://scripts/volume_doll.gd"
+
+## Experimental doll subclass with a continuous underbody mannequin
+## remodeled strictly to reference the stylized silhouette trend of the fake torso:
+## - Slender neck with natural soft sloping shoulders ("自然溜肩", smooth trapezius slope)
+## - Arm gradually widening and seamlessly flowing into the mitten hand ("手臂从上到下逐渐加粗与手连接")
+## - Natural organic S-curve spine: proud chest, tapered waist, full rounded peach buttocks ("胯部饱满厚度，自然翘臀")
+## - Cute, plump chibi legs with organic anatomical rhythm: full thighs, defined knees, soft calves, slender ankles ("比例和谐软萌腿型")
+## - Straight, graceful leg alignment without bow legs ("罗圈腿修正")
+## - Balanced, snug shoe heel counter ("鞋子后帮适度贴合脚跟")
+## - Modular body mesh occlusion masking: zero bare flesh penetration through clothed garments, with seamless nude mannequin in underbody mode
+
+var is_underbody_mode := false
+
+func _build_appearance() -> void:
+	super._build_appearance()
+	_apply_occlusion()
+
+func _build_volume_body() -> void:
+	super._build_volume_body()
+	_build_continuous_mannequin()
+
+func _build_continuous_mannequin() -> void:
+	var skin: Color = get_skin_color()
+
+	# Hide original disconnected Neck on this experimental doll so MannequinTorso and MannequinNeck
+	# provide the unified, continuous neck-to-crotch anatomy without seams or giraffe neck.
+	var old_neck := body_rig.get_node_or_null("Neck")
+	if old_neck != null:
+		old_neck.visible = false
+
+	# 1. Torso Body & Neck Hulls:
+	# Continuous, graceful chibi mannequin silhouette with natural sloping shoulders ("溜肩")
+	# and organic S-curve pelvis/buttock volume ("胯部厚度自然圆润垫起"):
+	# - Compact, graceful neck centered directly under cranium (Z ≈ +0.026)
+	# - Natural sloping shoulders ("自然溜肩") smoothly flowing into upper arms without shoulder ridges
+	# - Upright, proud posture: chest projects forward (+0.150 front), high waist tapers in gracefully
+	# - Plump, organic rounded peach buttocks spanning Y=1.06..1.22 with smooth dome peak at Y=1.12 (Z=-0.180)
+	# - Balanced abdominal curve in front and gluteal curve in back, giving real pelvic depth
+	# - Clean crotch closure at Y=1.02 right above leg separation
+	var torso_rings := [
+		Vector3(1.02, .075, .115), # 0: crotch bottom closure (safely nested inside thigh confluence)
+		Vector3(1.06, .210, .152), # 1: lower pelvis & subgluteal crease (encapsulates thigh sockets)
+		Vector3(1.12, .228, .168), # 2: cute rounded chibi peach buttock dome peak ("圆润翘臀")
+		Vector3(1.18, .222, .158), # 3: upper hip & gluteal curve
+		Vector3(1.25, .194, .138), # 4: lower waist & iliac crest transition
+		Vector3(1.32, .174, .124), # 5: natural high waist (subtle, soft inward flow matching dress)
+		Vector3(1.48, .186, .134), # 6: mid torso / lower ribcage
+		Vector3(1.62, .196, .138), # 7: smooth chest volume (cute chibi volume, proud posture)
+		Vector3(1.76, .188, .126), # 8: rounded natural sloping shoulder curve ("自然溜肩")
+		Vector3(1.84, .144, .108), # 9: gentle trapezius slope (seamless bridge with neck)
+	]
+	var torso_z_offsets := [
+		0.002,  # 1.02: crotch apex (-0.113 back, +0.117 front)
+		-0.006, # 1.06: subgluteal crease (-0.158 back, +0.146 front)
+		-0.012, # 1.12: buttock dome peak (-0.180 back, +0.156 front - full organic peach buttock!)
+		-0.010, # 1.18: upper hip (-0.168 back, +0.148 front)
+		-0.005, # 1.25: lower waist (-0.143 back, +0.133 front)
+		0.000,  # 1.32: high waist (-0.124 back, +0.124 front - 360-degree graceful taper)
+		0.006,  # 1.48: mid torso (-0.128 back, +0.140 front)
+		0.012,  # 1.62: proud chest (-0.126 back, +0.150 front)
+		0.010,  # 1.76: sloping shoulder line (-0.116 back, +0.136 front)
+		0.015,  # 1.84: shoulder slope (-0.093 back, +0.123 front)
+	]
+	var torso_mesh := _lathe(body_rig, "MannequinTorso", torso_rings, skin, 32, 0.0, true, [], torso_z_offsets)
+	torso_mesh.set_meta("garment_slot", "")
+	torso_mesh.set_meta("is_underbody", true)
+
+	var neck_rings := [
+		Vector3(1.84, .144, .108), # 9: trapezius slope (exact match with torso ring 9)
+		Vector3(1.92, .102, .088), # 10: neck-to-shoulder transition (compact, natural neck base)
+		Vector3(1.98, .080, .078), # 11: slender mid neck column
+		Vector3(2.04, .076, .074), # 12: delicate neck entering head cranium
+	]
+	var neck_z_offsets := [
+		0.015,  # 1.84: shoulder slope
+		0.020,  # 1.92: trapezius slope (-0.068 back, +0.108 front)
+		0.024,  # 1.98: mid neck (-0.054 back, +0.102 front)
+		0.028,  # 2.04: neck top directly under cranium center (+0.035)
+	]
+	var neck_mesh := _lathe(body_rig, "MannequinNeck", neck_rings, skin, 32, 0.0, true, [], neck_z_offsets)
+	neck_mesh.set_meta("garment_slot", "")
+	neck_mesh.set_meta("is_neck", true)
+
+	# 2. Arms & Hands:
+	# Continuous, tapering arm lathe extending into sculpted mitten hand:
+	# - Shoulder root starts flush inside sloping shoulder
+	# - Arm gradually widens from shoulder to wrist and seamlessly flows into the hand
+	# - Modular split at wrist (Y=-0.62): ArmMannequin (upper arm/forearm) and HandMannequin (mitten hand)
+	for index in arms.size():
+		var arm: Node3D = arms[index]
+		var side: float = -1.0 if index == 0 else 1.0
+
+		# Hide old disconnected Mitten and Thumb meshes so only continuous sculpted arm/hand is used
+		var wrist := arm.get_node_or_null("WristDetails")
+		if wrist != null:
+			var old_mitten := wrist.get_node_or_null("Mitten")
+			if old_mitten != null:
+				old_mitten.visible = false
+			var old_thumb := wrist.get_node_or_null("Thumb")
+			if old_thumb != null:
+				old_thumb.visible = false
+
+		# 2a. Upper Arm & Forearm (wrist to shoulder bulb)
+		var arm_rings := [
+			Vector3(-0.62, .084, .078),  # 4: lower forearm / wrist (seamless junction with hand ring 4)
+			Vector3(-0.50, .074, .070),  # 5: forearm (widening downwards)
+			Vector3(-0.36, .062, .060),  # 6: elbow / mid arm
+			Vector3(-0.22, .050, .048),  # 7: bicep / upper arm
+			Vector3(-0.10, .046, .044),  # 8: upper arm under shoulder
+			Vector3(-0.02, .056, .052),  # 9: deltoid / shoulder bulb equator (at bone pivot Y=1.77)
+			Vector3(0.02, .048, .046),   # 10: shoulder upper dome (Y=1.81)
+			Vector3(0.05, .034, .032),   # 11: shoulder bulb root inside torso cavity (Y=1.84)
+		]
+		var arm_x_offsets := [
+			side * 0.134,
+			side * 0.108,
+			side * 0.078,
+			side * 0.050,
+			side * 0.024,
+			side * 0.005,
+			-side * 0.012,
+			-side * 0.024,
+		]
+		var arm_z_offsets := [
+			0.024,
+			0.020,
+			0.015,
+			0.012,
+			0.012,
+			0.010,
+			0.008,
+			0.005,
+		]
+		var arm_mesh := _lathe(arm, "ArmMannequin", arm_rings, skin, 28, 0.0, true, arm_x_offsets, arm_z_offsets)
+		arm_mesh.position.z = 0.0
+		arm_mesh.set_meta("garment_slot", "")
+		arm_mesh.set_meta("is_underbody", true)
+
+		# Shared palm and thumb web, fused in Blender.
+		_build_shared_hand(arm, side, skin)
+		var hand_mesh := arm.get_node("Mitten") as MeshInstance3D
+		hand_mesh.name = "HandMannequin"
+		hand_mesh.position = Vector3(side*.145,-.055,0)
+		hand_mesh.set_meta("garment_slot", "")
+		hand_mesh.set_meta("is_hand", true)
+
+	# 3. Organic, Plump, Stylized Chibi Legs:
+	# Harmonious, adorable chibi legs with natural anatomical rhythm:
+	# - Full, rounded thighs tapering gently to defined cute knees
+	# - Soft calf curve tapering to slender, graceful ankles
+	# - Thigh back smoothly blends into plump rounded peach buttocks
+	# - Leg axis runs straight and vertical from hip to ankle (hip 0.136, knee 0.134, ankle 0.132)
+	# - Modular split at knee (Y=-0.40): ThighMannequin (thigh) and CalfMannequin (calf & ankle)
+	for index in legs.size():
+		var leg: Node3D = legs[index]
+		var side: float = -1.0 if index == 0 else 1.0
+
+		# Hide original disconnected Trouser and Calf meshes on experimental doll
+		var old_calf := leg.get_node_or_null("Calf")
+		if old_calf != null:
+			old_calf.visible = false
+		var old_trouser := leg.get_node_or_null("Trouser")
+		if old_trouser != null:
+			old_trouser.visible = false
+
+		# 3a. Thigh (knee to hip socket)
+		var thigh_rings := [
+			Vector3(-0.40, .086, .090),  # 5: knee joint (patella front, popliteal crease rear)
+			Vector3(-0.32, .092, .096),  # 6: above knee
+			Vector3(-0.22, .102, .108),  # 7: mid thigh (full rounded chibi thigh)
+			Vector3(-0.10, .116, .120),  # 8: upper thigh (blending with under-buttock crease)
+			Vector3(-0.02, .136, .134),  # 9: crotch confluence & gluteal fold
+			Vector3(0.06, .112, .144),   # 10: hip socket insert (nestled inside plump buttock)
+		]
+		var thigh_x_offsets := [
+			-side * 0.016,  # world X = side * 0.134 (knee joint)
+			-side * 0.015,  # world X = side * 0.135
+			-side * 0.015,  # world X = side * 0.135
+			-side * 0.014,  # world X = side * 0.136
+			-side * 0.014,  # world X = side * 0.136 (crotch confluence)
+			-side * 0.014,  # world X = side * 0.136 (hip joint)
+		]
+		var thigh_z_offsets := [
+			0.018,  # knee joint (patella forward curve)
+			0.012,  # above knee
+			0.006,  # mid thigh
+			-0.002, # upper thigh (under buttock)
+			-0.008, # crotch / subgluteal crease
+			-0.012, # hip socket (emerges smoothly from plump buttock peak)
+		]
+		var thigh_mesh := _lathe(leg, "ThighMannequin", thigh_rings, skin, 28, 0.0, true, thigh_x_offsets, thigh_z_offsets)
+		thigh_mesh.position.z = 0.0
+		thigh_mesh.set_meta("garment_slot", "")
+		thigh_mesh.set_meta("is_underbody", true)
+
+		# 3b. Calf & Ankle (ankle to knee)
+		var calf_rings := [
+			Vector3(-0.93, .054, .058),  # 0: ankle insert into shoe upper
+			Vector3(-0.88, .058, .062),  # 1: ankle joint (slender, graceful ankle)
+			Vector3(-0.78, .070, .072),  # 2: lower calf / achilles tendon
+			Vector3(-0.66, .082, .084),  # 3: mid calf
+			Vector3(-0.52, .094, .098),  # 4: calf belly (cute soft gastrocnemius curve)
+			Vector3(-0.40, .086, .090),  # 5: knee joint (patella front, popliteal crease rear)
+		]
+		var calf_x_offsets := [
+			-side * 0.018,  # world X = side * 0.132 (ankle)
+			-side * 0.018,  # world X = side * 0.132
+			-side * 0.017,  # world X = side * 0.133
+			-side * 0.017,  # world X = side * 0.133
+			-side * 0.017,  # world X = side * 0.133 (calf belly)
+			-side * 0.016,  # world X = side * 0.134 (knee joint)
+		]
+		var calf_z_offsets := [
+			0.032,  # ankle insert (matches shoe upper collar)
+			0.028,  # ankle joint
+			0.022,  # lower calf
+			0.016,  # mid calf
+			0.012,  # calf belly (smooth posterior swell)
+			0.018,  # knee joint
+		]
+		var calf_mesh := _lathe(leg, "CalfMannequin", calf_rings, skin, 28, 0.0, true, calf_x_offsets, calf_z_offsets)
+		calf_mesh.position.z = 0.0
+		calf_mesh.set_meta("garment_slot", "")
+		calf_mesh.set_meta("is_calf", true)
+
+func set_underbody_mode(underbody_only: bool) -> void:
+	is_underbody_mode = underbody_only
+	_apply_occlusion()
+
+func _apply_occlusion() -> void:
+	if not is_instance_valid(body_rig):
+		return
+
+	# 1. Outer clothes root visibility
+	if is_instance_valid(clothes_root):
+		clothes_root.visible = not is_underbody_mode
+
+	# 2. Skinned clothing meshes
+	var skinned := body_rig.get_node_or_null("SkinnedMeshes")
+	if skinned != null:
+		var g := skinned.get_node_or_null("garment")
+		if g != null: g.visible = not is_underbody_mode
+		var s := skinned.get_node_or_null("skirt")
+		if s != null: s.visible = not is_underbody_mode
+		var a := skinned.get_node_or_null("apron")
+		if a != null: a.visible = not is_underbody_mode
+		var t := skinned.get_node_or_null("torso")
+		if t != null:
+			for ch in t.get_children():
+				if str(ch.name) == "Neck":
+					ch.visible = false
+				elif not ch.has_meta("is_underbody") and not ch.has_meta("is_neck"):
+					ch.visible = not is_underbody_mode
+		for suffix in ["L", "R"]:
+			var arm_node := skinned.get_node_or_null("arm" + suffix)
+			if arm_node != null:
+				for ch in arm_node.get_children():
+					if str(ch.name) in ["Mitten", "Thumb"]:
+						ch.visible = false
+					elif not ch.has_meta("is_underbody") and not ch.has_meta("is_hand"):
+						ch.visible = not is_underbody_mode
+
+	# 3. Modular anatomical body visibility:
+	# Hide enclosed flesh under clothes to prevent clipping; show exposed extremities
+	var all_meshes := body_rig.find_children("*", "MeshInstance3D", true, false)
+	for m in all_meshes:
+		var n := str(m.name)
+		if n == "MannequinTorso":
+			m.visible = is_underbody_mode
+		elif n == "MannequinNeck":
+			m.visible = true
+		elif n == "ArmMannequin":
+			m.visible = is_underbody_mode
+		elif n in ["HandMannequin", "ArmMannequinThumb"]:
+			m.visible = true
+		elif n == "ThighMannequin":
+			m.visible = is_underbody_mode
+		elif n == "CalfMannequin":
+			m.visible = true # Hosiery masks only the covered portion, retaining ankle and sock.
+		elif n in ["Calf", "Trouser", "Neck", "Mitten", "Thumb"]:
+			m.visible = false
+		if n in ["ThighMannequin", "CalfMannequin"]:
+			if is_underbody_mode:
+				if not m.has_meta("clothed_leg_material"):
+					m.set_meta("clothed_leg_material", m.material_override)
+				m.material_override = _material(get_skin_color())
+			elif m.has_meta("clothed_leg_material"):
+				m.material_override = m.get_meta("clothed_leg_material")
+
+	# 4. WristDetails trim rings:
+	for arm in arms:
+		var wrist := arm.get_node_or_null("WristDetails")
+		if wrist != null:
+			wrist.visible = not is_underbody_mode

@@ -56,10 +56,11 @@ func color_score(definition: Resource) -> float:
 
 
 # Browsing only sees style, colour and the price tag; fit is learnt in the mirror.
-func browse_score(definition: Resource) -> float:
-	if not wants(definition) or definition.price > budget:
+func browse_score(definition: Resource, offered_price: int = -1) -> float:
+	var price := int(definition.price) if offered_price < 0 else offered_price
+	if not wants(definition) or price > budget:
 		return -INF
-	return 0.5 + color_score(definition) * color_weight - float(definition.price) / float(budget) * 0.2
+	return 0.5 + color_score(definition) * color_weight - float(price) / float(maxi(1,budget)) * 0.2
 
 
 func wish_text() -> String:

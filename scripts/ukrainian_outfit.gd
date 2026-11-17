@@ -1,21 +1,31 @@
 extends RefCounted
+## Dresses the shared VolumeDoll in the ukrainian_photo_001 set (WW-UKR-001).
+## Body, head, hair, mittens and shoes are the shared rig and stay untouched;
+## only the generic outfit-0 clothing is replaced (same convention as MosuoDoll).
+
 const Costume = preload("res://components/ukrainian_costume.gd")
-const COLOR_SHOE = Color("674137")
+const SHADER = preload("res://shaders/doll_costume.gdshader")
+const COLOR_SHOE = Color("684333")
+const RELIEF_CLOTH := .34
+const RELIEF_TRIM := .18
 var doll: Node3D
+
 
 func apply(target: Node3D) -> void:
 	doll = target
+	# The wide skirt occupies the default hand position below the high waist.
+	doll.body_rig.set_meta("relaxed_arm_angles", Vector2(deg_to_rad(-7.0), deg_to_rad(16.0)))
 	_strip_base_costume()
 	for label in preload("res://scripts/ukrainian_blender_mesh.gd").names():
 		var data := preload("res://scripts/ukrainian_blender_mesh.gd").geometry(label)
 		if data.slot == "hair": continue
 		var parent: Node3D = doll.skirt_root if data.slot == "bottom" else doll.clothes_root
-		_part(parent, label, data, Color.WHITE)
+		_part(parent, label, data, Color.WHITE, RELIEF_CLOTH)
 
 
 func _strip_base_costume() -> void:
-	# Same removal set as MosuoDoll: only generic outfit-0 clothing; body,
-	# head, hair, doll.arms, calves and shoes stay.
+	# Remove only generic outfit-0 clothing; body, head, hair, arms, calves
+	# and shoes stay.
 	if doll._garment != null:
 		doll._garment.free()
 		doll._garment = null
@@ -51,26 +61,31 @@ func _strip_base_costume() -> void:
 				(piece as MeshInstance3D).material_override = doll._material(COLOR_SHOE.darkened(.18) if dark else COLOR_SHOE)
 
 
-func _part(parent: Node3D, label: String, data: Dictionary, color: Color) -> MeshInstance3D:
+func _material(color: Color, relief: float, vertex_colors: bool) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = SHADER
+	mat.set_shader_parameter("pigment", color)
+	mat.set_shader_parameter("use_vertex_color", vertex_colors)
+	mat.set_shader_parameter("relief_strength", relief)
+	mat.set_shader_parameter("tone_steps", 6.0)
+	mat.set_shader_parameter("use_pigment_map", true)
+	mat.set_shader_parameter("pigment_map", preload("res://assets/collections/ukrainian_photo_001/linen_weave.png"))
+	return mat
+
+
+func _part(parent: Node3D, label: String, data: Dictionary, color: Color, relief: float) -> MeshInstance3D:
 	var part = doll._mesh(parent, label, data.vertices, data.normals, data.indices, color)
+	var arrays = part.mesh.surface_get_arrays(0)
+	if data.has("uv"):
+		arrays[Mesh.ARRAY_TEX_UV] = data.uv
+		part.set_meta("preserve_fabric_uv", true)
+	if data.has("colors"):
+		arrays[Mesh.ARRAY_COLOR] = data.colors
 	if data.has("uv") or data.has("colors"):
-		var arrays = part.mesh.surface_get_arrays(0)
-		if data.has("uv"):
-			arrays[Mesh.ARRAY_TEX_UV] = data.uv
-		if data.has("colors"):
-			arrays[Mesh.ARRAY_COLOR] = data.colors
-			var woven := ShaderMaterial.new()
-			woven.shader = preload("res://shaders/doll_costume.gdshader")
-			woven.set_shader_parameter("pigment", color)
-			woven.set_shader_parameter("use_vertex_color", true)
-			woven.set_shader_parameter("relief_strength", .38)
-			woven.set_shader_parameter("tone_steps", 8.0)
-			part.material_override = woven
 		var mesh = ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		part.mesh = mesh
-		if data.has("uv"):
-			part.set_meta("preserve_fabric_uv", true)
+	part.material_override = _material(color, relief, data.has("colors"))
 	part.set_meta("garment_slot", data.slot)
 	part.set_meta("source_geometry", "Procedural / ukrainian_photo_001")
 	part.set_meta("wiki_record_id", "WW-UKR-001")

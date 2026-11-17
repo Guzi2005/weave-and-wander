@@ -1,6 +1,6 @@
 extends SceneTree
 
-const Doll = preload("res://scripts/volume_doll.gd")
+const Doll = preload("res://scripts/game_body_doll.gd")
 # ArrayMesh stores each of the four weights with 16-bit precision.
 const WEIGHT_EPSILON := 4.0 / 65535.0
 var failures: Array[String] = []
@@ -9,6 +9,7 @@ var checked_poses := 0
 var minimum_gap := INF
 var maximum_gap_change := 0.0
 var current_pose := 0
+var posed_cache := {}
 
 
 func _initialize() -> void:
@@ -30,7 +31,12 @@ func _run() -> void:
 		for instance in doll.rig.meshes:
 			if instance.has_meta("skin_layer_sources"):
 				layers.append(instance)
-		_check(layers.size() == (5 if outfit == 1 else 2), "Apron, pocket, straps and tie must inherit their underlying clothing surface.")
+		# Validate required parts, not a historical total that excluded new buttons.
+		var names: Array[String] = []
+		for layer in layers: names.append(str(layer.name))
+		var required := ["Apron", "Pocket", "ApronStrapCrossL", "ApronStrapCrossR", "ApronTie"] if outfit == 1 else ["OpenWaistcoat"]
+		for label in required:
+			_check(label in names, "Missing clothing surface binding: " + label)
 		for layer in layers:
 			_check(layer.get_meta("skin_layer_unmapped") == 0, "A clothing layer has unbound vertices.")
 			_check_weights(layer)
@@ -53,6 +59,8 @@ func _run() -> void:
 					weights[target] += amount
 				doll.rig.pose_rest("sit" if pose < 48 else "nap",1.0,pose*.7,weights)
 			checked_poses += 1
+			doll.body_contact.update()
+			posed_cache.clear()
 			for layer in layers:
 				_check_layer_pose(doll, layer)
 		doll.free()
@@ -94,14 +102,16 @@ func _check_weights(layer: MeshInstance3D) -> void:
 
 func _check_layer_pose(doll: VolumeDoll, layer: MeshInstance3D) -> void:
 	var rest: PackedVector3Array = layer.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	var posed: PackedVector3Array = doll.rig.deformed_vertices(layer)
+	var posed := _evaluated(doll, layer)
 	var triangles: PackedInt32Array = layer.get_meta("skin_layer_triangles")
 	var barycentric: PackedVector3Array = layer.get_meta("skin_layer_barycentric")
 	var source_ids: PackedInt32Array = layer.get_meta("skin_layer_source_index")
 	var sources: Array = []
 	for path in layer.get_meta("skin_layer_sources"):
 		var source := layer.get_node(NodePath(path)) as MeshInstance3D
-		sources.append([source.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX], doll.rig.deformed_vertices(source)])
+		sources.append([source.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX], _evaluated(doll, source)])
+	var contact_material := layer.material_override as ShaderMaterial
+	var fabric: bool = contact_material != null and contact_material.get_shader_parameter("cloth_contact_enabled") == true
 	for i in rest.size():
 		var source: Array = sources[source_ids[i]]
 		var contact := Vector3.ZERO
@@ -115,10 +125,16 @@ func _check_layer_pose(doll: VolumeDoll, layer: MeshInstance3D) -> void:
 		var c: Vector3 = source[1][triangles[i * 3 + 2]]
 		var normal := (c - a).cross(b - a).normalized()
 		var gap := (posed[i] - contact).dot(normal)
-		if gap < -.001 and not failures.has("A clothing layer crossed its underlying surface: " + str(layer.name)):
+		if fabric and gap < -.001 and not failures.has("A clothing layer crossed its underlying surface: " + str(layer.name)):
 			print("LAYER_CONTACT pose=",current_pose," layer=",layer.name," vertex=",i," gap=",gap," rest=",rest[i])
 		minimum_gap = minf(minimum_gap, gap)
 		maximum_gap_change = maxf(maximum_gap_change, absf(posed[i].distance_to(contact) - rest[i].distance_to(rest_contact)))
 		_check(posed[i].is_finite(), "Layer animation produced non-finite vertices.")
-		_check(gap > -0.001, "A clothing layer crossed its underlying surface: " + str(layer.name))
+		# Rigid button undersides intentionally anchor into cloth; they are not fabric.
+		if fabric: _check(gap > -0.001, "A clothing layer crossed its underlying surface: " + str(layer.name))
 		checked_vertices += 1
+
+
+func _evaluated(doll: Node3D, part: MeshInstance3D) -> PackedVector3Array:
+	if not posed_cache.has(part): posed_cache[part] = doll.body_contact.evaluate_vertices(part)
+	return posed_cache[part]

@@ -3,7 +3,7 @@ import bpy
 import math
 from pathlib import Path
 
-OUT = Path('D:/GodotProjects/weave-and-wander/prototypes/dollhouse-3d/assets/models')
+OUT = Path('D:/workspace/weave-and-wander/assets/models')
 name = 'WW_ShoppingBag'
 old = bpy.data.collections.get(name)
 if old:

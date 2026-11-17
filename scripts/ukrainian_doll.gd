@@ -1,21 +1,23 @@
 class_name UkrainianDoll
-extends "res://scripts/volume_doll.gd"
+extends "res://scripts/game_body_doll.gd"
 
 ## ukrainian_photo_001 set on the shared rig: the generic body, head, hair,
 ## arms, calves and shoes are built first and stay untouched; only the base
-## outfit is replaced (same convention as MosuoDoll). White ankle-length
-## undershirt-dress with red neck ribbon, high yellow sash with yellow/purple
-## tassels, purple front apron, dark striped overskirt. Skirts are built by
-## UkrainianCostume's contract-compliant parametric shell.
+## outfit is replaced (same convention as MosuoDoll). Hair is the shared
+## wavy bob (hair style 3) in chestnut; shoes are the shared strapped low
+## shoes with white sock instep (shoe style 1).
 
 const Costume = preload("res://components/ukrainian_costume.gd")
 const FlatMaterial = preload("res://scripts/doll_costume_material.gd")
-const COLOR_SHOE := Color("674137")
 
 
 func _init() -> void:
+	hosiery = preload("res://components/hosiery_style.gd").new()
+	hosiery.enabled = true
+	hosiery.length = .22
 	hair_style = 3
 	shoe_style = 1
+	hair_color_index = 3
 
 
 func _build_appearance() -> void:

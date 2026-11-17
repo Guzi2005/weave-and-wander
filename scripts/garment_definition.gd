@@ -18,6 +18,7 @@ const MOSUO_COLLECTION := "mosuo_photo_001"
 @export var culture_attribution := ""
 @export var source_design_path := ""
 @export var material_data: Dictionary = {}
+@export var fabric_physics: Resource = preload("res://components/garment_fabric_profile.gd").new()
 @export var accessory_kind := ""
 @export_range(.012,.12,.002) var headband_min_width := .025
 @export_range(.025,.18,.002) var headband_max_width := .09

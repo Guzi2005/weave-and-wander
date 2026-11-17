@@ -7,7 +7,7 @@ import bpy, math, json, os, random
 from mathutils import Vector
 from math import sin, cos, pi, sqrt
 
-ROOT = r'D:\GodotProjects\weave-and-wander\prototypes\dollhouse-3d'
+ROOT = r'D:\workspace\weave-and-wander'
 OUT = os.path.join(ROOT, 'assets/collections/mosuo_photo_001')
 os.makedirs(OUT, exist_ok=True)
 NAME = 'WW_Photo001_Refined'

@@ -77,6 +77,7 @@ func _setup_controls() -> void:
 	canvas.add_child(row)
 	_button(row, "返回店铺", func() -> void: get_tree().change_scene_to_file("res://main.tscn"))
 	_button(row, "摩梭套装研究台", func() -> void: get_tree().change_scene_to_file("res://scenes/wiki_asset_preview.tscn"))
+	_button(row, "乌克兰套装研究台", func() -> void: get_tree().change_scene_to_file("res://scenes/ukrainian_asset_preview.tscn"))
 	_button(row, "转台", func() -> void: rotating = not rotating)
 	_button(row, "走动", func() -> void: walking = not walking)
 	_button(row, "换发型", func() -> void:

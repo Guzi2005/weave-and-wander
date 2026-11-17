@@ -4,7 +4,7 @@ import math
 from pathlib import Path
 from mathutils import Vector
 
-OUT = Path('D:/GodotProjects/weave-and-wander/prototypes/dollhouse-3d/assets/models')
+OUT = Path('D:/workspace/weave-and-wander/assets/models')
 OUT.mkdir(parents=True, exist_ok=True)
 name = 'WW_InteractiveLoom'
 old = bpy.data.collections.get(name)

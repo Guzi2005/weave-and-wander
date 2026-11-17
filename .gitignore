@@ -4,7 +4,6 @@
 captures/skirt_avatar_export/
 
 # Independent projects and workstation output
-/tools/ww-wiki/
 /tools/baigong-pattern-studio/
 /captures/
 /NVIDIA Corporation/
@@ -13,5 +12,16 @@ captures/skirt_avatar_export/
 /script_templates/
 /text_editor_themes/
 *.blend1
+*.blend@
 .env
 .env.*
+
+# Local runtime logs and caches
+*.log
+stdout.txt
+stderr.txt
+launch_log.txt
+__pycache__/
+*.pyc
+.wrangler/
+scratch_check_sit_bounds.gd.uid

@@ -1,5 +1,5 @@
 class_name MosuoDoll
-extends "res://scripts/volume_doll.gd"
+extends "res://scripts/game_body_doll.gd"
 
 ## Photo-derived costume set mosuo_photo_001 (wiki record WW-MOS-001) on the
 ## shared 22-bone rig: black cord-wrapped headwear with dense purple
@@ -80,7 +80,7 @@ func _build_volume_body() -> void:
 	_strip_base_costume()
 	_build_mosuo_top()
 	_build_mosuo_skirt()
-	var hand_socket := _socket(clothes_root,"InsoleGripSocket",Vector3(.30,1.17,.12),Vector3(0,0,-8),"HandR","手持鞋垫")
+	var hand_socket := _socket(clothes_root,"InsoleGripSocket",Vector3(.245,1.10,.055),Vector3(0,0,-8),"HandR","手持鞋垫")
 	for data in BlenderParts.parts("handcraft"):
 		# Handcraft vertices are authored around their own grip origin in Blender.
 		var insole := _costume_part(hand_socket,data.name,data,Color.WHITE)

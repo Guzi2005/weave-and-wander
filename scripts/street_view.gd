@@ -10,6 +10,10 @@ var depth := 1.0
 var target_depth := 1.0
 var _scroll_idle := 0.0
 var exterior := false
+var desktop_mode := false
+var interaction_locked := false
+var _desktop_blend := 0.0
+const PAGE_TITLES := ["店面与街道", "店内 · 纸艺小铺", "后排 · 工坊扩建", "后街 · 耗材小摊"]
 var near_size := 12.0
 var near_offset := Vector2.ZERO
 var far_size := 24.0
@@ -59,7 +63,7 @@ func _ready() -> void:
 
 
 func interior_interaction() -> bool:
-	return absf(depth - 1.0) < .16 and absf(target_depth - 1.0) < .2
+	return not desktop_mode and not interaction_locked and absf(depth - 1.0) < .16 and absf(target_depth - 1.0) < .2
 
 
 func _process(delta: float) -> void:
@@ -69,12 +73,41 @@ func _process(delta: float) -> void:
 func step(delta: float) -> void:
 	_follow_delta = clampf(delta,0.0,.1)
 	zoom = move_toward(zoom,target_zoom,delta*1.9)
-	_scroll_idle += delta
-	if _scroll_idle > .24:
-		target_depth = roundf(target_depth)
+	_desktop_blend = move_toward(_desktop_blend, 1.0 if desktop_mode else 0.0, delta * 1.8)
 	depth = move_toward(depth, target_depth, delta * 1.25)
 	exterior = depth < .5
 	apply_view()
+
+
+func page_index() -> int:
+	return clampi(roundi(target_depth), 0, 3)
+
+
+func page_name() -> String:
+	return PAGE_TITLES[page_index()]
+
+
+func set_page(index: int) -> void:
+	if desktop_mode or interaction_locked:
+		return
+	clear_follow()
+	target_depth = float(clampi(index, 0, 3))
+	pan_offset = Vector2.ZERO
+	focus_x = 0.0
+	controller._world_pressed_doll = null
+	_end_pan()
+
+
+func step_page(direction: int) -> void:
+	set_page(page_index() + direction)
+
+
+func set_desktop(enabled: bool) -> void:
+	clear_follow()
+	desktop_mode = enabled
+	controller._world_pressed_doll = null
+	_end_pan()
+	orbiting = false
 
 
 func follow(doll: Node3D, first_person: bool) -> void:
@@ -110,21 +143,25 @@ func apply_view() -> void:
 	controller.camera.fov = 35.0
 	controller.camera.near = 0.025
 	var t := clampf(zoom, 0, 1)
-	var transition := sin((depth - floorf(depth)) * PI)
-	var overview := .45 * (1.0 - smoothstep(0.0, 1.0, depth)) + .10 * smoothstep(1.0, 2.0, depth)
-	controller.camera.size = lerpf(near_size,far_size,t) * pow(2.0,minf(zoom,0.0)) * (1.0 + overview + transition * .12)
+	controller.camera.size = lerpf(near_size,far_size,t) * pow(2.0,minf(zoom,0.0))
 	var offset := near_offset.lerp(far_offset,t)+pan_offset
 	var direction := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))
 	var basis := Basis.looking_at(-direction, Vector3.UP)
 	var target := Vector3(focus_x, 2.75, .25) + basis * Vector3(offset.x, offset.y, 0)
-	# Move through the actual rows, not interchangeable scenes at the same spot.
-	target.z -= 6.5 * smoothstep(1.0, 2.0, depth) + 6.5 * smoothstep(2.0, 3.0, depth)
+	# Each paper page unfolds on the same stage; only presentation vertices move.
 	var distance: float = controller.camera.size / (2.0 * tan(deg_to_rad(controller.camera.fov) * .5))
-	controller.camera.position = target + direction * distance
-	controller.camera.look_at(target, Vector3.UP)
+	var stage_position := target + direction * distance
+	# An explicit pull-back reveals the existing real-scale craft desk. It does
+	# not relocate characters, furniture or the simulation between chapters.
+	var desk_target := Vector3(0, -1.0, -4.5)
+	var desk_position := Vector3(0, 72, 84)
+	controller.camera.position = stage_position.lerp(desk_position, smoothstep(0, 1, _desktop_blend))
+	controller.camera.look_at(target.lerp(desk_target, smoothstep(0, 1, _desktop_blend)), Vector3.UP)
 	controller.camera.h_offset = 0
 	controller.camera.v_offset = 0
 	if controller.has_node("RenderAB"): controller.get_node("RenderAB").apply_camera()
+	# The outer studio belongs to the explicitly opened desktop, not the story.
+	controller.camera.set_cull_mask_value(2, _desktop_blend > .01)
 	if is_instance_valid(controller._pop_up):
 		controller._pop_up.apply_depth(depth)
 
@@ -258,7 +295,7 @@ func _end_pan() -> void:
 
 
 func _can_pan(point: Vector2, check_staff: bool = true) -> bool:
-	if is_instance_valid(follow_target):
+	if is_instance_valid(follow_target) or desktop_mode or interaction_locked:
 		return false
 	if controller._wardrobe.visible or controller.dragging_doll != null or controller._roof_controls._over_ui(point):
 		return false
@@ -317,13 +354,8 @@ func _scroll_input(event: InputEvent) -> bool:
 			# Some Windows mouse drivers report zero for wheel factor. Treat one
 			# physical notch as one step so depth changes are not rounded away.
 			var amount := direction * (absf(event.factor) if not is_zero_approx(event.factor) else 1.0)
-			if event.ctrl_pressed:
-				adjust(-amount * .18)
-			else:
-				_scroll_idle = 0
-				target_depth = clampf(target_depth + amount * .26, 0, 3)
-				# Each scroll also changes scale, while the chapter opens on the same base.
-				adjust(-amount * .08)
+			# Pages belong to the arrow controls; wheel/pinch only inspect scale.
+			adjust(-amount * .18)
 			get_viewport().set_input_as_handled()
 		return true
 	elif event is InputEventMagnifyGesture:
@@ -335,6 +367,8 @@ func _scroll_input(event: InputEvent) -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	if desktop_mode or interaction_locked:
+		return
 	# Handle wheel before full-viewport decorative controls can consume it.
 	if _scroll_input(event):
 		return

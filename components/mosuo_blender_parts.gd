@@ -2,6 +2,7 @@ extends RefCounted
 
 ## Mesh handoff from the editable Blender source. The shared game rig supplies skinning.
 const PATH := "res://assets/collections/mosuo_photo_001/blender_geometry.json"
+const SASH_LIFT := Vector3(0, 0.075, 0)
 static var _parts: Array[Dictionary] = []
 const MATERIALS := {
 	"braid":["18151d",.36,0.0], "red":["e92e44",.24,.08],
@@ -9,8 +10,8 @@ const MATERIALS := {
 	"blue":["2563a9",.38,0.0], "purple":["873db4",.32,0.0],
 	"pink":["ee334c",.4,0.0], "pinklight":["ff6870",.43,0.0],
 	"ivory":["f0e2c7",.43,0.0], "piping":["be1b35",.32,0.0],
-	"stripe":["a62652",.39,0.0], "sash":["714152",.48,0.0],
-	"sashthread":["bd8994",.46,0.0], "insole":["a5a49a",.9,0.0],
+	"stripe":["a62652",.39,0.0], "sash":["fffdf8",.48,0.0],
+	"sashthread":["ded9cf",.46,0.0], "insole":["a5a49a",.9,0.0],
 	"insoleedge":["bf3871",.55,0.0]
 }
 
@@ -22,7 +23,8 @@ static func parts(slot: String) -> Array[Dictionary]:
 			var data := {"name":record.name,"slot":record.slot,"material":record.material,
 				"vertices":PackedVector3Array(),"normals":PackedVector3Array(),
 				"indices":PackedInt32Array(record.indices),"arm_weights":PackedFloat32Array(record.arm_weights)}
-			for v: Array in record.vertices: data.vertices.append(Vector3(v[0],v[1],v[2]))
+			var offset := SASH_LIFT if record.material in ["sash", "sashthread"] else Vector3.ZERO
+			for v: Array in record.vertices: data.vertices.append(Vector3(v[0],v[1],v[2]) + offset)
 			for n: Array in record.normals: data.normals.append(Vector3(n[0],n[1],n[2]))
 			if not record.uv.is_empty():
 				data["uv"] = PackedVector2Array()

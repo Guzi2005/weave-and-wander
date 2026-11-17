@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert, specular_disabled;
 #include "res://shaders/pop_up.gdshaderinc"
+#include "res://shaders/cloth_contact.gdshaderinc"
 
 // Repeats are in original local metres, shared by packages, cut pieces and garments.
 uniform vec4 pigment : source_color = vec4(0.47, 0.60, 0.69, 1.0);
@@ -22,6 +23,7 @@ float stripe(float coordinate) {
 }
 
 void vertex() {
+	contact_cloth(VERTEX, NORMAL, BONE_INDICES, BONE_WEIGHTS, UV2);
 	cloth_position = VERTEX * physical_scale;
 	cloth_normal = NORMAL;
 	fold_paper(VERTEX, NORMAL, MODEL_MATRIX);

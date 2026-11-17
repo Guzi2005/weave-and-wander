@@ -90,6 +90,12 @@ func _group(node: Node3D, page: int, origin: Vector3, floor_part := false, role 
 	for mesh in meshes:
 		var source: Material = mesh.material_override
 		if source == null:
+			if mesh is MeshInstance3D and mesh.mesh != null:
+				for surface in mesh.mesh.get_surface_count():
+					var surface_material: Material = mesh.get_active_material(surface)
+					if surface_material == null: continue
+					if not copies.has(surface_material): copies[surface_material] = _copy(surface_material)
+					mesh.set_surface_override_material(surface,copies[surface_material])
 			continue
 		if not copies.has(source):
 			copies[source] = _copy(source)
@@ -105,10 +111,11 @@ func _pose(group: Dictionary, amount: float, origin: Vector3) -> void:
 		return
 	if (group.last < 1.0) != (amount < 1.0) or group.last < 0.0:
 		for mesh in group.get("meshes", []):
-			if is_instance_valid(mesh): mesh.extra_cull_margin = 12.0 if amount < 1.0 else 0.0
+			if is_instance_valid(mesh): mesh.extra_cull_margin = 24.0 if int(group.get("page", 1)) >= 2 else (12.0 if amount < 1.0 else 0.0)
 	group.last = amount
 	group.origin = origin
 	for material in group.materials:
+		material.set_shader_parameter("stage_offset", page_offset(int(group.get("page", 1))))
 		material.set_shader_parameter("fold_enabled", true)
 		material.set_shader_parameter("fold_amount", amount)
 		material.set_shader_parameter("fold_origin", origin)
@@ -130,21 +137,21 @@ func _group_amount(group: Dictionary) -> float:
 		return 1.0 - smoothstep(1.05, 1.65, depth)
 	if role == "front_room_fixed":
 		if group.get("floor", false):
-			return 1.0
+			return 1.0 - smoothstep(1.05, 1.85, depth)
 		return front_room_amount()
 	if role == "front_architecture":
 		return 1.0 - smoothstep(1.0, 1.85, depth)
 	if role == "rear_room":
-		return 1.0
+		return opened[2]
 	if role == "rear_architecture":
-		return 1.0 - smoothstep(2.0, 2.85, depth)
+		return opened[2]
 	if role == "back_street":
-		return 1.0
+		return opened[3]
 	return opened[group.page]
 
 
 func front_room_amount() -> float:
-	return 1.0 - smoothstep(2.05, 2.65, depth)
+	return 1.0 - smoothstep(1.05, 1.85, depth)
 
 
 func apply_depth(value: float) -> void:
@@ -158,7 +165,7 @@ func apply_depth(value: float) -> void:
 		if not is_instance_valid(node):
 			continue
 		var amount: float = _group_amount(group)
-		node.visible = amount > .001
+		node.visible = amount > .001 and not bool(node.get_meta("presentation_hidden", false))
 		var origin: Vector3 = group.origin
 		if not group.transform.is_equal_approx(node.global_transform):
 			origin += node.global_position - group.transform.origin
@@ -244,3 +251,22 @@ func is_front_room() -> bool:
 
 func page_name() -> String:
 	return PAGE_NAMES[clampi(roundi(depth), 0, 3)]
+
+
+func page_offset(page: int) -> Vector3:
+	# Render displacement only: actors and navigation retain their world space.
+	if enclosed: return Vector3.ZERO
+	return Vector3(0, 0, 6.5 if page == 2 else (16.0 if page == 3 else 0.0))
+
+
+func presentation_position(world: Vector3, page: int) -> Vector3:
+	return world + page_offset(page)
+
+
+func register_dynamic_page(node: Node3D, page: int) -> void:
+	for existing in _static_groups:
+		if existing.root.get_ref() == node: return
+	var origin := node.global_position
+	origin.y = 0.0
+	_static_groups.append(_group(node, page, origin, false, "back_street" if page == 3 else "rear_room"))
+	apply_depth(depth)

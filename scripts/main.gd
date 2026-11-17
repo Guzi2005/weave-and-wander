@@ -1,7 +1,7 @@
 extends Node
 
 const PaperArt = preload("res://scripts/paper_art.gd")
-const PaperDollScript = preload("res://scripts/volume_doll.gd")
+const PaperDollScript = preload("res://scripts/game_body_doll.gd")
 const CustomerDollScript = preload("res://scripts/customer_doll.gd")
 const CustomerProfile = preload("res://scripts/customer_profile.gd")
 const ShopInventory = preload("res://scripts/shop_inventory.gd")
@@ -119,6 +119,12 @@ var _business_session: RefCounted
 var _work_dispatcher: RefCounted
 var _workshop_audio: Node
 var _workshop_closeup: Node
+var _progression: Node
+var _progression_panel: CanvasLayer
+var _desktop: Node
+var _furnishings: Node
+var _vendor: Node
+var _vendor_button: Button
 
 
 func _ready() -> void:
@@ -175,6 +181,7 @@ func _ready() -> void:
 	_pop_up.controller = self
 	add_child(_pop_up)
 	_view_controls.apply_view()
+	_setup_mechanics()
 	if "--capture" in arguments:
 		_capture_later.call_deferred()
 	elif "--smoke-test" in arguments:
@@ -183,6 +190,63 @@ func _ready() -> void:
 	render_ab.name = "RenderAB"
 	render_ab.game = self
 	add_child(render_ab)
+	render_ab.visible = "--render-ab" in arguments
+
+
+func _setup_mechanics() -> void:
+	_progression = preload("res://scripts/progression_state.gd").new()
+	_progression.name = "ProgressionState"
+	add_child(_progression)
+	_progression.setup(self)
+	_inventory.price_policy = _progression.sale_price
+	_progression_panel = preload("res://scripts/progression_panel.gd").new()
+	_progression_panel.name = "ManuscriptPages"
+	add_child(_progression_panel)
+	_progression_panel.setup(self, _progression)
+	_desktop = preload("res://scripts/desktop_interaction.gd").new()
+	_desktop.name = "DesktopInteraction"
+	add_child(_desktop)
+	_desktop.setup(self)
+	_desktop.page_requested.connect(_progression_panel.open_page)
+	_furnishings = preload("res://scripts/furnishing_mode.gd").new()
+	_furnishings.name = "FurnishingMode"
+	add_child(_furnishings)
+	_furnishings.setup(self)
+	_vendor = preload("res://scripts/street_vendor.gd").new()
+	_vendor.name = "StreetVendor"
+	add_child(_vendor)
+	_vendor.setup(self, _pop_up.back_street)
+	var layer := CanvasLayer.new()
+	layer.name = "ChapterActions"
+	layer.layer = 5
+	add_child(layer)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	row.offset_left = -430
+	row.offset_top = 14
+	row.offset_right = -80
+	row.add_theme_constant_override("separation", 8)
+	layer.add_child(row)
+	var desk_button := _make_text_button("退回书桌", Vector2(112, 36))
+	desk_button.tooltip_text = "在书桌上翻阅杂志、账册、成长手稿和存档信封"
+	desk_button.pressed.connect(func() -> void:
+		_production_panel.hide()
+		_dye_panel.hide()
+		_order_queue_panel.hide()
+		_close_wardrobe()
+		_desktop.enter_desktop())
+	row.add_child(desk_button)
+	var furnish_button := _make_text_button("布置小铺", Vector2(112, 36))
+	furnish_button.pressed.connect(func() -> void:
+		_production_panel.hide()
+		_dye_panel.hide()
+		_order_queue_panel.hide()
+		_close_wardrobe()
+		_furnishings.open())
+	row.add_child(furnish_button)
+	_vendor_button = _make_text_button("奶奶的耗材摊", Vector2(154, 36))
+	_vendor_button.pressed.connect(func() -> void: _vendor.open_shop())
+	row.add_child(_vendor_button)
 
 
 func _recover_startup_view() -> void:
@@ -238,6 +302,10 @@ func _process(delta: float) -> void:
 		_workshop_audio.tick(delta * _speed)
 	if is_instance_valid(_workshop_closeup):
 		_workshop_closeup.tick(delta)
+	if is_instance_valid(_vendor):
+		_vendor.tick(delta * _speed, _day_index, _day_minutes)
+	if is_instance_valid(_progression):
+		_progression.tick(delta * _speed)
 	_update_ui()
 
 
@@ -270,6 +338,8 @@ func _update_electricity(scaled_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if (is_instance_valid(_desktop) and _desktop.active) or (is_instance_valid(_furnishings) and _furnishings.active):
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F11:
 			_toggle_fullscreen()
@@ -470,6 +540,8 @@ func _build_room() -> void:
 
 
 func _switch_room(id: String, animate: bool = true) -> void:
+	if is_instance_valid(_view_controls):
+		_view_controls.set_page(1)
 	# Sliding along the row keeps the current zoom. Forcing the front page fought inspection.
 	if is_instance_valid(_view_controls):
 		_view_controls.reset_pan()
@@ -493,9 +565,8 @@ func _switch_room(id: String, animate: bool = true) -> void:
 
 
 func _step_room(direction: int) -> void:
-	var index := ROOM_ORDER.find(_active_room) + direction
-	if index >= 0 and index < ROOM_ORDER.size():
-		_switch_room(ROOM_ORDER[index])
+	if is_instance_valid(_view_controls):
+		_view_controls.step_page(direction)
 
 
 func _route_in_room(from: Vector3, to: Vector3, room_id: String) -> PackedVector3Array:
@@ -788,7 +859,8 @@ func _process_staff_jobs(scaled_delta: float) -> void:
 		_staff_behaviors[id].tick(scaled_delta)
 	_cover_counter()
 	_mints.tick(scaled_delta)
-	_production.advance(scaled_delta)
+	var production_rate := float(_progression.production_multiplier(_production.actor)) if is_instance_valid(_progression) else 1.0
+	_production.advance(scaled_delta * production_rate)
 	_dye.advance(scaled_delta)
 	_supply_catalog.tick(scaled_delta)
 
@@ -1032,6 +1104,25 @@ func _setup_ui() -> void:
 			if is_instance_valid(_selected_doll):
 				_selected_doll.set_shoe_style(index))
 		shoes.add_child(button)
+	wardrobe_content.add_child(_section_label("袜子"))
+	var hosiery_row := HBoxContainer.new()
+	wardrobe_content.add_child(hosiery_row)
+	var sock_lengths := OptionButton.new()
+	for label in ["选择袜长", "不穿袜", "船袜", "短袜", "长筒袜", "过膝袜", "连裤袜"]:
+		sock_lengths.add_item(label)
+	sock_lengths.item_selected.connect(func(index: int):
+		if index > 0 and _selected_doll is VolumeDoll:
+			_selected_doll.set_hosiery({"enabled": index > 1, "length": [0.0, 0.0, 0.0, .22, .55, .85, 1.0][index]})
+	)
+	hosiery_row.add_child(sock_lengths)
+	var sock_patterns := OptionButton.new()
+	for label in ["选择纹样", "素色", "罗纹", "条纹", "圆点"]:
+		sock_patterns.add_item(label)
+	sock_patterns.item_selected.connect(func(index: int):
+		if index > 0 and _selected_doll is VolumeDoll:
+			_selected_doll.set_hosiery({"enabled": true, "pattern": index-1})
+	)
+	hosiery_row.add_child(sock_patterns)
 	wardrobe_content.add_child(_section_label("服装结构"))
 	var outfit_row := HBoxContainer.new()
 	outfit_row.add_theme_constant_override("separation", 6)
@@ -1174,7 +1265,7 @@ func _setup_floating_hud(ui: CanvasLayer) -> void:
 	tools_row.name = "ShopTools"
 	hud.add_child(tools_row)
 	tools_row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	tools_row.offset_left = -180
+	tools_row.offset_left = -68
 	tools_row.offset_right = -20
 	tools_row.offset_top = 20
 	tools_row.offset_bottom = 68
@@ -1267,7 +1358,7 @@ func _setup_floating_hud(ui: CanvasLayer) -> void:
 	rooms_row.add_theme_constant_override("separation",8)
 	rooms_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_room_left = FloatingButton.new()
-	_room_left.configure("chevron-left", "前往左侧房间")
+	_room_left.configure("chevron-left", "翻至上一场景")
 	_room_left.pressed.connect(_step_room.bind(-1))
 	rooms_row.add_child(_room_left)
 	_room_label = Label.new()
@@ -1281,7 +1372,7 @@ func _setup_floating_hud(ui: CanvasLayer) -> void:
 	_room_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rooms_row.add_child(_room_label)
 	_room_right = FloatingButton.new()
-	_room_right.configure("chevron-right", "前往右侧房间")
+	_room_right.configure("chevron-right", "翻至下一场景")
 	_room_right.pressed.connect(_step_room.bind(1))
 	rooms_row.add_child(_room_right)
 	var clock_row := HBoxContainer.new()
@@ -1368,12 +1459,15 @@ func _section_label(text_value: String) -> Label:
 
 func _update_ui() -> void:
 	if is_instance_valid(_room_label):
-		_room_label.text = ROOM_NAMES[_active_room] if not is_instance_valid(_pop_up) or _pop_up.is_front_room() else _pop_up.page_name()
-		var room_index := ROOM_ORDER.find(_active_room)
-		_room_left.disabled = room_index == 0
-		_room_right.disabled = room_index == ROOM_ORDER.size()-1
-		_room_left.tooltip_text = "前往" + ROOM_NAMES[ROOM_ORDER[maxi(room_index-1,0)]]
-		_room_right.tooltip_text = "前往" + ROOM_NAMES[ROOM_ORDER[mini(room_index+1,ROOM_ORDER.size()-1)]]
+		var page := int(_view_controls.page_index()) if is_instance_valid(_view_controls) else 1
+		_room_label.text = _view_controls.page_name() if is_instance_valid(_view_controls) else "前排房间"
+		_room_left.disabled = page == 0
+		_room_right.disabled = page == 3
+		_room_left.tooltip_text = "翻至上一场景"
+		_room_right.tooltip_text = "翻至下一场景"
+	if is_instance_valid(_vendor_button):
+		_vendor_button.visible = is_instance_valid(_view_controls) and _view_controls.page_index() == 3
+		_vendor_button.text = "奶奶的耗材摊" if is_instance_valid(_vendor) and _vendor.is_trading() else "耗材摊 · 尚未开摊"
 	if is_instance_valid(_time_label):
 		var hour := int(_day_minutes / 60.0) % 24
 		var minute := int(_day_minutes) % 60

@@ -12,17 +12,72 @@ const HEAD_HEIGHT := 0.65
 const SOLE_HEIGHT := 0.19
 
 const SKIN_TONES := [
-	Color("e9bfa9"),
-	Color("cc9677"),
-	Color("ae775c"),
-	Color("805442"),
+	Color("e9bfa9"), # 0: 瓷白/粉润浅肤 (Porcelain Peach - classic baseline 0)
+	Color("cc9677"), # 1: 暖阳小麦 (Warm Tan / Ochre - classic baseline 1)
+	Color("ae775c"), # 2: 焦糖古铜 (Bronze Chestnut - classic baseline 2)
+	Color("805442"), # 3: 浓郁深褐 (Rich Espresso - classic baseline 3)
+	Color("f6e2d5"), # 4: 象牙冷白 (Ivory Fair)
+	Color("dfad91"), # 5: 柔润杏桃 (Soft Apricot)
+	Color("d39371"), # 6: 蜜糖金麦 (Honey Amber)
+	Color("9a6147"), # 7: 深栗可可 (Cocoa Chestnut)
+	Color("5f3c2e"), # 8: 曜夜浓巧 (Deep Chocolate)
+	Color("3d251d"), # 9: 乌木幽深 (Ebony Deep)
 ]
 const HAIR_COLORS := [
-	Color("4a3934"),
-	Color("71594c"),
-	Color("363435"),
-	Color("a26848"),
+	Color("4a3934"), # 0: 暖栗深棕 (Dark Chestnut - classic baseline 0)
+	Color("71594c"), # 1: 柔和奶茶 (Soft Brunette - classic baseline 1)
+	Color("363435"), # 2: 曜石幽黑 (Raven Charcoal - classic baseline 2)
+	Color("a26848"), # 3: 暖铜红褐 (Auburn Copper - classic baseline 3)
+	Color("1c1a1a"), # 4: 浓黑墨夜 (Ink Jet Black)
+	Color("d8ab5c"), # 5: 璀璨暖金 (Golden Blonde)
+	Color("c79c72"), # 6: 蜜糖亚麻 (Honey Flaxen)
+	Color("8c5237"), # 7: 枫糖赤褐 (Maple Russet)
+	Color("b5bac2"), # 8: 银灰霜雪 (Silver Frost)
+	Color("e8e5de"), # 9: 白金浅羽 (Platinum Feather)
+	Color("b87b87"), # 10: 暮云烟粉 (Pastel Mauve)
+	Color("365049"), # 11: 苍松黛绿 (Forest Pine)
+	Color("2a3c56"), # 12: 霁夜深蓝 (Midnight Navy)
 ]
+const EYE_COLORS := [
+	Color("292321"), # 0: 曜石黑褐 (Obsidian Espresso - classic baseline 0)
+	Color("5a3d28"), # 1: 琥珀暖褐 (Warm Amber)
+	Color("422a1d"), # 2: 浓郁栗黑 (Chestnut Brown)
+	Color("2d5178"), # 3: 澄澈海蓝 (Sapphire Deep Blue)
+	Color("487c9c"), # 4: 冰晶湖蓝 (Aqua Lake)
+	Color("326244"), # 5: 翡翠林绿 (Emerald Forest)
+	Color("5c6534"), # 6: 橄榄金绿 (Olive Hazel)
+	Color("563d68"), # 7: 幽夜紫晶 (Amethyst Violet)
+	Color("72313e"), # 8: 绯红石榴 (Ruby Crimson)
+	Color("484e57"), # 9: 烟岚雾灰 (Slate Smoke Grey)
+	Color("82682e"), # 10: 璨金琥珀 (Topaz Gold)
+]
+const SKIN_NAME_MAP := {
+	"porcelain": 0, "fair": 4, "ivory": 4, "peach": 0, "apricot": 5,
+	"tan": 1, "wheat": 1, "honey": 6, "bronze": 2, "chestnut": 2,
+	"cocoa": 7, "espresso": 3, "dark": 3, "chocolate": 8, "ebony": 9, "deep": 9,
+}
+const HAIR_NAME_MAP := {
+	"chestnut": 0, "dark_brown": 0, "brunette": 1, "brown": 1, "milk_tea": 1,
+	"black": 2, "charcoal": 2, "raven": 2, "ink": 4, "jet_black": 4,
+	"auburn": 3, "copper": 3, "red": 3, "russet": 7,
+	"blonde": 5, "gold": 5, "golden": 5, "flaxen": 6, "honey_blonde": 6,
+	"silver": 8, "grey": 8, "gray": 8, "frost": 8, "white": 9, "platinum": 9,
+	"pink": 10, "mauve": 10, "rose": 10,
+	"green": 11, "teal": 11, "pine": 11,
+	"blue": 12, "navy": 12, "midnight": 12,
+}
+const EYE_NAME_MAP := {
+	"black": 0, "dark": 0, "espresso": 0, "obsidian": 0,
+	"amber": 1, "warm_brown": 1, "chestnut": 2, "brown": 2,
+	"blue": 3, "sapphire": 3, "deep_blue": 3,
+	"aqua": 4, "lake": 4, "cyan": 4, "sky": 4,
+	"green": 5, "emerald": 5,
+	"olive": 6, "hazel": 6,
+	"violet": 7, "purple": 7, "amethyst": 7,
+	"red": 8, "ruby": 8, "crimson": 8, "garnet": 8,
+	"grey": 9, "gray": 9, "slate": 9, "smoke": 9,
+	"gold": 10, "topaz": 10, "golden": 10,
+}
 const OUTFIT_PALETTES := [
 	[Color("9fc7d0"), Color("9bbf9d"), Color("ede5d4")],
 	[Color("bc6858"), Color("c19c59"), Color("ecd9b6")],
@@ -40,7 +95,11 @@ var hair_style := 0
 var outfit_style := 0
 var palette_index := 0
 var skin_index := 0
+var custom_skin_color := Color(0, 0, 0, 0)
 var hair_color_index := 0
+var custom_hair_color := Color(0, 0, 0, 0)
+var eye_color_index := 0
+var custom_eye_color := Color(0, 0, 0, 0)
 var move_speed := 1.28
 var selected := false
 # Rolled once at spawn; see scripts/personality.gd. Empty means neutral traits.
@@ -79,8 +138,24 @@ func configure(data: Dictionary) -> void:
 	hair_style = int(data.get("hair", hair_style))
 	outfit_style = int(data.get("outfit", outfit_style))
 	palette_index = int(data.get("palette", palette_index))
-	skin_index = int(data.get("skin", skin_index))
-	hair_color_index = int(data.get("hair_color", hair_color_index))
+	if data.has("skin"):
+		_parse_skin_param(data["skin"])
+	elif data.has("skin_color"):
+		_parse_skin_param(data["skin_color"])
+	elif data.has("skin_index"):
+		_parse_skin_param(data["skin_index"])
+
+	if data.has("hair_color"):
+		_parse_hair_color_param(data["hair_color"])
+	elif data.has("hair_color_index"):
+		_parse_hair_color_param(data["hair_color_index"])
+
+	if data.has("eye"):
+		_parse_eye_color_param(data["eye"])
+	elif data.has("eye_color"):
+		_parse_eye_color_param(data["eye_color"])
+	elif data.has("eye_color_index"):
+		_parse_eye_color_param(data["eye_color_index"])
 	move_speed = float(data.get("speed", move_speed))
 	_build_appearance()
 
@@ -181,8 +256,107 @@ func set_palette(value: int) -> void:
 	appearance_changed.emit(self)
 
 
+func _parse_skin_param(value: Variant) -> void:
+	if value is Color:
+		custom_skin_color = value
+	elif value is String:
+		var s := str(value).strip_edges().to_lower()
+		if s.begins_with("#"):
+			custom_skin_color = Color(s)
+		elif SKIN_NAME_MAP.has(s):
+			skin_index = SKIN_NAME_MAP[s]
+			custom_skin_color = Color(0, 0, 0, 0)
+		elif s.is_valid_int():
+			skin_index = s.to_int()
+			custom_skin_color = Color(0, 0, 0, 0)
+		else:
+			var c := Color.from_string(s, Color(0, 0, 0, 0))
+			if c.a > 0.0:
+				custom_skin_color = c
+			else:
+				skin_index = 0
+				custom_skin_color = Color(0, 0, 0, 0)
+	elif value is int or value is float:
+		skin_index = int(value)
+		custom_skin_color = Color(0, 0, 0, 0)
+
+func _parse_hair_color_param(value: Variant) -> void:
+	if value is Color:
+		custom_hair_color = value
+	elif value is String:
+		var s := str(value).strip_edges().to_lower()
+		if s.begins_with("#"):
+			custom_hair_color = Color(s)
+		elif HAIR_NAME_MAP.has(s):
+			hair_color_index = HAIR_NAME_MAP[s]
+			custom_hair_color = Color(0, 0, 0, 0)
+		elif s.is_valid_int():
+			hair_color_index = s.to_int()
+			custom_hair_color = Color(0, 0, 0, 0)
+		else:
+			var c := Color.from_string(s, Color(0, 0, 0, 0))
+			if c.a > 0.0:
+				custom_hair_color = c
+			else:
+				hair_color_index = 0
+				custom_hair_color = Color(0, 0, 0, 0)
+	elif value is int or value is float:
+		hair_color_index = int(value)
+		custom_hair_color = Color(0, 0, 0, 0)
+
+func _parse_eye_color_param(value: Variant) -> void:
+	if value is Color:
+		custom_eye_color = value
+	elif value is String:
+		var s := str(value).strip_edges().to_lower()
+		if s.begins_with("#"):
+			custom_eye_color = Color(s)
+		elif EYE_NAME_MAP.has(s):
+			eye_color_index = EYE_NAME_MAP[s]
+			custom_eye_color = Color(0, 0, 0, 0)
+		elif s.is_valid_int():
+			eye_color_index = s.to_int()
+			custom_eye_color = Color(0, 0, 0, 0)
+		else:
+			var c := Color.from_string(s, Color(0, 0, 0, 0))
+			if c.a > 0.0:
+				custom_eye_color = c
+			else:
+				eye_color_index = 0
+				custom_eye_color = Color(0, 0, 0, 0)
+	elif value is int or value is float:
+		eye_color_index = int(value)
+		custom_eye_color = Color(0, 0, 0, 0)
+
+func get_skin_color() -> Color:
+	if custom_skin_color.a > 0.0:
+		return custom_skin_color
+	return SKIN_TONES[posmod(skin_index, SKIN_TONES.size())]
+
 func get_hair_color() -> Color:
+	if custom_hair_color.a > 0.0:
+		return custom_hair_color
 	return HAIR_COLORS[posmod(hair_color_index, HAIR_COLORS.size())]
+
+func get_eye_color() -> Color:
+	if custom_eye_color.a > 0.0:
+		return custom_eye_color
+	return EYE_COLORS[posmod(eye_color_index, EYE_COLORS.size())]
+
+func set_skin(value: Variant) -> void:
+	_parse_skin_param(value)
+	_build_appearance()
+	appearance_changed.emit(self)
+
+func set_hair_color(value: Variant) -> void:
+	_parse_hair_color_param(value)
+	_build_appearance()
+	appearance_changed.emit(self)
+
+func set_eye_color(value: Variant) -> void:
+	_parse_eye_color_param(value)
+	_build_appearance()
+	appearance_changed.emit(self)
 
 
 func get_outfit_color() -> Color:
@@ -215,6 +389,7 @@ func simulate(delta: float, speed_scale: float) -> void:
 	_phase += scaled_delta
 	if _moving:
 		var previous := global_position
+		var previous_step := floori((_travel_distance * 8.5 - PI * .5) / PI)
 		var direction := _target - global_position
 		if direction.length() > 0.01:
 			_heading = direction.normalized()
@@ -222,6 +397,9 @@ func simulate(delta: float, speed_scale: float) -> void:
 		_travel_speed = move_toward(_travel_speed, desired_speed, scaled_delta * 3.4)
 		global_position = global_position.move_toward(_target, _travel_speed * scaled_delta)
 		_travel_distance += global_position.distance_to(previous)
+		# One contact per half gait cycle; travel distance prevents idle footsteps.
+		if floori((_travel_distance * 8.5 - PI * .5) / PI) > previous_step and is_visible_in_tree():
+			get_tree().call_group("workshop_spatial_audio", "play_footstep", self)
 		var remaining := global_position.distance_to(_target)
 		if remaining < 0.025:
 			global_position = _target
@@ -381,7 +559,7 @@ func _build_hair_back() -> void:
 
 
 func _build_legs_and_shoes() -> void:
-	var skin: Color = SKIN_TONES[posmod(skin_index, SKIN_TONES.size())]
+	var skin: Color = get_skin_color()
 	var shoe_color: Color = OUTFIT_PALETTES[posmod(palette_index, OUTFIT_PALETTES.size())][1]
 	for side in [-1.0, 1.0]:
 		_add_shape("Leg%s" % side, _mirror(PackedVector2Array([
@@ -399,7 +577,7 @@ func _build_body_and_clothes() -> void:
 	var main_color: Color = palette[0]
 	var accent: Color = palette[1]
 	var light: Color = palette[2]
-	var skin: Color = SKIN_TONES[posmod(skin_index, SKIN_TONES.size())]
+	var skin: Color = get_skin_color()
 	_add_shape("Neck", _smooth(PackedVector2Array([
 		Vector2(-0.095, 2.06), Vector2(0.095, 2.06), Vector2(0.105, 1.84), Vector2(-0.1, 1.84)
 	])), skin, 0.03)
@@ -497,7 +675,7 @@ func _build_body_and_clothes() -> void:
 
 
 func _build_head() -> void:
-	var skin: Color = SKIN_TONES[posmod(skin_index, SKIN_TONES.size())]
+	var skin: Color = get_skin_color()
 	_add_shape("LeftEar", PaperArt.circle_points(Vector2(-0.29, 2.19), 0.048, 24, 1.26), skin, 0.03)
 	_add_shape("RightEar", PaperArt.circle_points(Vector2(0.29, 2.19), 0.048, 24, 1.26), skin, 0.03)
 	_add_shape("Face", _smooth(PackedVector2Array([
@@ -537,12 +715,12 @@ func _build_hair_front() -> void:
 
 
 func _build_face() -> void:
-	var skin: Color = SKIN_TONES[posmod(skin_index, SKIN_TONES.size())]
+	var skin: Color = get_skin_color()
 	var blush := skin.lerp(Color("bd6e64"), 0.18)
 	for side in [-1.0, 1.0]:
 		_add_shape("Cheek%s" % side, PaperArt.circle_points(Vector2(side * 0.183, 2.126), 0.05, 24, 0.5), blush, 0.081)
 		_add_shape("Eye%s" % side, PaperArt.circle_points(Vector2(side * 0.103, 2.237), 0.026, 24, 1.13),
-			Color("2a2726"), 0.086)
+			get_eye_color(), 0.086)
 	_stroke("Smile", PackedVector2Array([
 		Vector2(-0.065, 2.094), Vector2(-0.024, 2.068), Vector2(0.027, 2.069), Vector2(0.068, 2.097)
 	]), Color("62423b"), 0.007, 0.09)

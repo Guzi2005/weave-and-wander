@@ -104,7 +104,8 @@ const HAIR_SLOT_OPTIONS := [
 	{"id": "03", "name": "#03 温柔半扎长发 (Half-Up Long Hair)", "fn": "build_hair_03_half_up_long"},
 	{"id": "04", "name": "#04 芭蕾高丸子头 (Ballet Topknot Bun)", "fn": "build_hair_04_topknot_bun"},
 	{"id": "05", "name": "#05 偏分大波浪锁骨发 (Wavy Lob)", "fn": "build_hair_05_wavy_lob"},
-	{"id": "06", "name": "#06 活力双马尾 (Playful Twin Pigtails)", "fn": "build_hair_06_twin_pigtails"}
+	{"id": "06", "name": "#06 活力双马尾 (Playful Twin Pigtails)", "fn": "build_hair_06_twin_pigtails"},
+	{"id": "23", "name": "★ #23 【双主角】孙女深棕侧马尾与发夹 (Granddaughter Side Ponytail)", "fn": "build_hair_granddaughter_side_ponytail"}
 ]
 
 const TOP_SLOT_OPTIONS := [
@@ -113,7 +114,8 @@ const TOP_SLOT_OPTIONS := [
 	{"id": "10", "name": "#10 水手领衬衫 (Sailor Blouse)", "fn": "build_garment_10_sailor_blouse"},
 	{"id": "13", "name": "#13 方领泡泡袖上衣 (Square-Neck Top)", "fn": "build_garment_13_square_neck_top"},
 	{"id": "08", "name": "#08 荷叶边娃娃裙 (Babydoll One-Piece)", "fn": "build_garment_08_babydoll_remake"},
-	{"id": "15", "name": "#15 挂脖A字连衣裙 (Shift Dress One-Piece)", "fn": "build_garment_15_mock_neck_shift_dress"}
+	{"id": "15", "name": "#15 挂脖A字连衣裙 (Shift Dress One-Piece)", "fn": "build_garment_15_mock_neck_shift_dress"},
+	{"id": "24", "name": "★ #24 【双主角】孙女北欧折线提花毛衣 (Granddaughter Nordic Sweater)", "fn": "build_garment_granddaughter_nordic_sweater"}
 ]
 
 const OUTER_SLOT_OPTIONS := [
@@ -126,7 +128,8 @@ const OUTER_SLOT_OPTIONS := [
 const BOTTOM_SLOT_OPTIONS := [
 	{"id": "none", "name": "【素体下身】(None / Bare Legs)", "fn": ""},
 	{"id": "14", "name": "#14 高腰百褶短裤 (Pleated Bermuda Shorts)", "fn": "build_garment_14_pleated_shorts"},
-	{"id": "trouser", "name": "经典修身长裤 (Classic Trousers)", "fn": "_build_default_trouser"}
+	{"id": "trouser", "name": "经典修身长裤 (Classic Trousers)", "fn": "build_garment_classic_trousers"},
+	{"id": "25", "name": "★ #25 【双主角】孙女森林绿高腰百褶裙 (Granddaughter Forest Skirt)", "fn": "build_garment_granddaughter_pleated_skirt"}
 ]
 
 const HAT_SLOT_OPTIONS := [
@@ -222,15 +225,17 @@ func _ready() -> void:
 	camera.size = cam_size
 	camera.current = true
 
-	# Right Controls Panel (Enhanced readability & no occlusion)
+	# Right Controls Panel (Fixed 460px width, prevents viewport jitter)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size.x = 450
+	scroll.custom_minimum_size = Vector2(460, 0)
+	scroll.size_flags_horizontal = 0 # Rigid width, never expand dynamically
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(scroll)
 
 	var margin_box := MarginContainer.new()
-	margin_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin_box.custom_minimum_size = Vector2(430, 0)
+	margin_box.size_flags_horizontal = Control.SIZE_FILL
 	margin_box.add_theme_constant_override("margin_top", 12)
 	margin_box.add_theme_constant_override("margin_bottom", 16)
 	margin_box.add_theme_constant_override("margin_left", 14)
@@ -507,18 +512,19 @@ func _rebuild_modular_mannequin() -> void:
 				Catalog.invoke(o_opt["fn"], doll, op)
 				break
 
-	# 5. Build Bottom Slot (Shorts / Trousers)
+	# 5. Build Bottom Slot (Shorts / Trousers / Granddaughter Skirt)
 	var bottom_id: String = active_slots.get("bottom", "none")
-	if bottom_id == "14":
-		var bp: Dictionary = slot_params.get("bottom", {}).duplicate()
-		bp["slot_mode"] = true
-		bp["slot_tag"] = "bottom"
-		bp["tucked_in"] = (has_top and tucked_in_enabled)
-		bp["color"] = current_garment_palette.get("bottom_main", current_garment_palette["main"].darkened(0.08))
-		bp["belt_color"] = current_garment_palette["detail"]
-		Catalog.build_garment_14_pleated_shorts(doll, bp)
-	elif bottom_id == "trouser":
-		_build_default_trouser()
+	if bottom_id != "none":
+		for b_opt in BOTTOM_SLOT_OPTIONS:
+			if b_opt["id"] == bottom_id and not b_opt["fn"].is_empty():
+				var bp: Dictionary = slot_params.get("bottom", {}).duplicate()
+				bp["slot_mode"] = true
+				bp["slot_tag"] = "bottom"
+				bp["tucked_in"] = (has_top and tucked_in_enabled)
+				bp["color"] = current_garment_palette.get("bottom_main", current_garment_palette["main"].darkened(0.08))
+				bp["belt_color"] = current_garment_palette["detail"]
+				Catalog.invoke(b_opt["fn"], doll, bp)
+				break
 
 	# 6. Build Headwear Slot (Hat / Scarf)
 	var hat_id: String = active_slots.get("hat", "none")
@@ -805,6 +811,16 @@ func _setup_modular_catalog_ui(parent: Control) -> void:
 	btn_pinafore.pressed.connect(func() -> void:
 		_set_active_slots("04", "07", "12", "none", "16", "none", "none"))
 	preset_bar.add_child(btn_pinafore)
+
+	var btn_granddaughter := Button.new()
+	btn_granddaughter.text = "★ 孙女日常"
+	btn_granddaughter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_granddaughter.pressed.connect(func() -> void:
+		current_hair_color = Color("3d2c25")
+		current_garment_palette["main"] = Color(0.92, 0.89, 0.83)
+		current_garment_palette["bottom_main"] = Color(0.14, 0.28, 0.22)
+		_set_active_slots("23", "24", "none", "25", "none", "19", "none"))
+	preset_bar.add_child(btn_granddaughter)
 
 	# Layering Clearance & Tuck-in Controls
 	var layer_opts_row := HBoxContainer.new()
@@ -1137,6 +1153,8 @@ func _add_slot_selector(parent: Control, label_text: String, slot_key: String, o
 	var ob := OptionButton.new()
 	ob.custom_minimum_size.y = 30
 	ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ob.fit_to_longest_item = false
+	ob.clip_text = true
 	for opt in options:
 		ob.add_item(opt["name"])
 	ob.select(0)
@@ -1355,6 +1373,7 @@ func _add_slider(parent: Control, label_text: String, param_key: String, min_val
 func _add_checkbox(parent: Control, label_text: String, param_key: String, default_val: bool, params: Dictionary, on_toggle: Callable) -> void:
 	var cb := CheckBox.new()
 	cb.text = label_text
+	cb.clip_text = true
 	cb.button_pressed = bool(params.get(param_key, default_val))
 	cb.add_theme_color_override("font_color", Color("344a49"))
 	cb.toggled.connect(on_toggle)
@@ -1644,8 +1663,9 @@ func _process(delta: float) -> void:
 		doll.body_contact.advance(delta)
 		doll.body_contact.update()
 
-	# Hair secondary dynamic physics reaction
+	# Hair & Cloth secondary dynamic physics reaction
 	_update_hair_secondary_physics(delta, current_omega, walk)
+	_update_cloth_secondary_physics(delta, current_omega, walk)
 
 
 func _update_hair_secondary_physics(delta: float, omega: float, walk: float) -> void:
@@ -1665,3 +1685,49 @@ func _update_hair_secondary_physics(delta: float, omega: float, walk: float) -> 
 				n.rotation.z = lerpf(n.rotation.z, target_lag, delta * 12.0)
 				n.rotation.x = lerpf(n.rotation.x, target_flare, delta * 12.0)
 				n.position.y = lerpf(n.position.y, bounce, delta * 8.0)
+
+
+func _update_cloth_secondary_physics(delta: float, omega: float, walk: float) -> void:
+	if not cloth_secondary_enabled or not is_instance_valid(doll):
+		return
+
+	var cr := Catalog._resolve_clothes_root(doll)
+	if cr == null: return
+
+	# 1. Centrifugal Flare on Skirts
+	var target_skirt_flare := 1.0 + clampf(omega * omega * 0.0035, 0.0, 0.38)
+	for child in cr.get_children():
+		var c_name := str(child.name)
+		var skirt_node: Node3D = null
+		if c_name.contains("PleatedSkirt") or c_name.contains("PinaforeSkirt") or c_name.contains("Shorts"):
+			skirt_node = child as Node3D
+		elif child.has_node("GranddaughterPleatedSkirt"):
+			skirt_node = child.get_node("GranddaughterPleatedSkirt") as Node3D
+		elif child.has_node("PinaforeSkirt"):
+			skirt_node = child.get_node("PinaforeSkirt") as Node3D
+		if skirt_node != null:
+			skirt_node.scale.x = lerpf(skirt_node.scale.x, target_skirt_flare, delta * 10.0)
+			skirt_node.scale.z = lerpf(skirt_node.scale.z, target_skirt_flare, delta * 10.0)
+
+	# 2. Canvas Tote Bag Inertial Lag & Swing
+	var bag_node: Node3D = doll.get_node_or_null("CanvasToteBag")
+	if bag_node == null and cr.has_node("CanvasToteBag"):
+		bag_node = cr.get_node("CanvasToteBag") as Node3D
+	if bag_node != null:
+		var bag_lag := -clampf(omega * 0.040, -0.65, 0.65)
+		var bag_flare := clampf(omega * omega * 0.006, 0.0, 0.45)
+		bag_node.rotation.y = lerpf(bag_node.rotation.y, bag_lag, delta * 8.0)
+		bag_node.rotation.z = lerpf(bag_node.rotation.z, -bag_lag * 0.5, delta * 8.0)
+		bag_node.rotation.x = lerpf(bag_node.rotation.x, bag_flare, delta * 8.0)
+
+	# 3. Sailor Scarf Tie Tails & Ribbon Sway
+	for child in cr.get_children():
+		for sub in child.get_children():
+			var s_name := str(sub.name)
+			if s_name.contains("TieTail") or s_name.contains("Scarf") or s_name.contains("Ribbon"):
+				var sn := sub as Node3D
+				if sn != null:
+					var tie_lag := -clampf(omega * 0.055, -0.70, 0.70)
+					var tie_flare := clampf(omega * omega * 0.008, 0.0, 0.50)
+					sn.rotation.z = lerpf(sn.rotation.z, tie_lag, delta * 12.0)
+					sn.rotation.x = lerpf(sn.rotation.x, tie_flare, delta * 12.0)

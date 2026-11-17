@@ -58,7 +58,9 @@ func _run() -> void:
 
 	doll = Doll.new()
 	stage.add_child(doll)
-	doll.configure({"outfit": 0, "palette": 0, "hair": 0})
+	doll.configure({"outfit": 0, "palette": 0, "hair": 3, "shoe_style": 1})
+	doll.set_process(false)
+	doll.face_for_wardrobe()
 
 	camera = Camera3D.new()
 	camera.name = "CaptureCamera"
@@ -78,6 +80,10 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	_save("res://captures/ukrainian_preview/quarter.png")
 
+	doll.body_rig.rotation.y = PI * 0.5
+	await RenderingServer.frame_post_draw
+	_save("res://captures/ukrainian_preview/side.png")
+
 	doll.body_rig.rotation.y = PI
 	await RenderingServer.frame_post_draw
 	_save("res://captures/ukrainian_preview/back.png")
@@ -94,6 +100,15 @@ func _run() -> void:
 	_aim(Vector3(0, 1.95, 4.0), Vector3(0, 1.83, 0))
 	await RenderingServer.frame_post_draw
 	_save("res://captures/ukrainian_preview/neck.png")
+	# Sample the actual shared rig; still renders alone cannot expose waist slip.
+	camera.size = 2.85
+	_aim(Vector3(0, 1.45, 7.0), Vector3(0, 1.32, 0))
+	for sample in 3:
+		doll.rig.animate(TAU * sample / 3.0, 1.0, "idle", 0)
+		doll.body_rig.rotation.y = PI * .18
+		await process_frame
+		await RenderingServer.frame_post_draw
+		_save("res://captures/ukrainian_preview/walk_%d.png" % sample)
 
 	print("UKRAINIAN_CAPTURE failures=", failures)
 	stage.free()

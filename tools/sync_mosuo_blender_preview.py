@@ -4,8 +4,8 @@ Retains the editable cloth construction collection and imports the exact game ri
 as a separate output collection. No reference evidence is replaced by this output.
 """
 import bpy,json,struct,pathlib
-ROOT=pathlib.Path(r'D:\GodotProjects\weave-and-wander\prototypes\dollhouse-3d')
-source=ROOT/'tools/ww-wiki/public/assets/models/mosuo_ensemble.glb'
+ROOT=pathlib.Path(r'D:\workspace\weave-and-wander')
+source=ROOT.parent/'W&W Wiki/public/assets/models/mosuo_ensemble.glb'
 blob=source.read_bytes(); length=struct.unpack_from('<I',blob,12)[0]
 doc=json.loads(blob[20:20+length])
 def integers(value):

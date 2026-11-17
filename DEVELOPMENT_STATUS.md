@@ -1,5 +1,21 @@
 # Active work
 
+## 2026-11-11 mechanics expansion
+
+The user authorized a new mechanics/art pass and requested refinements to the vendor grandmother, manuscript pages and furniture movement. The playable first pass now includes physical desktop menus, arrow-selected folded scenes, a daily consumables vendor, one magazine quiz, four individual skills, two business branches with two child nodes, cash journals and stable closed-shop saves with backup recovery. Furniture supports direct drag, rotation, cancellation and undo. Art direction and plain manuscript pages were generated with imagegen; shop/cart meshes were made through Blender MCP. Frozen shared body scripts and the separate cloth research remain unchanged.
+
+Mechanics verification: 43 progression/save checks, 20 vendor checks and 7 real transaction pricing checks pass; navigation/furnishing and business-day tests pass. A fresh Godot process restored inventory identities, materials, quiz, vendor stock and furniture layouts. See `Docs/DEVELOPMENT_LOG.md` (2026-11-11), `captures/mechanics_*.png`, `captures/vendor_grandmother.png` and `captures/desktop_navigation_20261111.png`. This does not complete the full GDD: full quests/story, cultural magazine content, an expanded costume catalog, regional travel/events and further business branches remain future work.
+
+## Earlier cloth study stop
+
+2026-11-10 quota-reserve stop: user requires >=15% remaining; last observed weekly remaining was16%. No default garment replaced. The CURRENT-local-hem experiment failed contacts/strain. Three edge-strain unit tests pass, but the actual Blender rest-length regression fails (explicit nonzero rest key still does not contract a stretched test patch). See `Docs/HANDOFF.md` and `captures/current_hem_regression.json`; do not treat the requested rest key as verified cloth physics. No background simulation remains.
+
+## 2026-11-10 independent project and wearing experiments
+
+Latest visual decision supersedes the candidate below: the user prefers CURRENT's rounded, cohesive side-view nap silhouette. Borrow only NATIVE's more natural hem-opening angle, without overstretching fabric. Preserve the current hip/mid-skirt/seat contours and the accepted body/pose; the next bounded task is local hem reorientation with material-strain and contact checks. No native candidate is the new accepted/default garment.
+
+The active game/Git root is `D:/workspace/weave-and-wander`. Read `Docs/HANDOFF.md` for current continuation, frozen-body hashes, reproducible captures and unresolved checks; older entries below describe earlier baselines. The user has marked four desired contours in `Docs/reference-body/sleep-silhouette-guidance-20261110.png`: combine selected A hip/seat contours with B's loose open hem, not an A/B binary choice. The new `silhouette_review` native fixed-pose fitting candidate has zero triangle intersections among the skirt, three ribbons, body and cushion in its final style0/nap0 snapshot, but still needs visual refinement and transition validation. It is NOT integrated into default gameplay. The previous `waist_review` real runtime stand/nap round trip has contacts in 45/62 sampled states, including a separate body/cushion support-path issue. Derived ribbon morph channels/UV2 are repaired; this is not collision acceptance. Local append-only history is `Docs/DEVELOPMENT_LOG.md`, with a short `DEVLOG.md` index at this root.
+
 ## 2026-10-24 pleated-skirt authoring and workflow correction
 
 - Local Git now protects the prototype: baseline `58e7496`. The earlier 2026-10-23 note about missing Git describes the state before this correction. Changes should have a baseline, a bounded scope and focused acceptance evidence before expansion.
@@ -9,7 +25,7 @@
 - The editor now previews the actual VolumeDoll with 57 baked stand/walk/sit/lie frames and cage-retargeted pleats; playback, pause and scrubbing are available. Preview-only thighs and a waist-length shirt complete the fitting body. Color-edged drawing tabs, 42px numeric fields and transparent surfaces follow papercut-editor. Browser checks cover keyboard tabs, playback, themes, tablet layout, native art/save/export and eight extreme-parameter poses. Editor tests: 114 passing; TypeScript and production build pass.
 - The accepted game nap implementation is unchanged. The new garment is still standalone in Godot: runtime wearing and the item chain remain the next gate. Preview retargeting has no collision, gravity or sewing solver; short/narrow skirts can intersect thighs when seated, and very wide skirts need drape calibration. Do not treat editor preview as collision-free gameplay acceptance.
 - The nap work exposed a source-geometry defect (vest sleeve-cap triangles), coupling between pose and clothing deformation, missing visual acceptance gates, and weak version/evidence boundaries. Keep the source fix and bounded pose corrections; do not relax intersection tolerances or grow a general simulator to finish a small action. Verify source geometry, representative poses and actual rendered silhouettes together. The wrong editor connection further demonstrates that the target application and file contract must be confirmed before integration work.
-- Current sequence: finish the skirt authoring/export gate → one referenced skirt through character stand/walk/sit/lie and the existing rack/fitting/mirror/item-identity chain → fixed-seed 30-customer operating regression in `../../Docs/MVP_PLAN.md` → opening/closing, procurement/production and day-end accounting → stable closed-shop save. Keep one bounded milestone active; do not expand all garment types or production animations at once.
+- Current sequence: finish the skirt authoring/export gate → one referenced skirt through character stand/walk/sit/lie and the existing rack/fitting/mirror/item-identity chain → fixed-seed 30-customer operating regression in `Docs/MVP_PLAN.md` → opening/closing, procurement/production and day-end accounting → stable closed-shop save. Keep one bounded milestone active; do not expand all garment types or production animations at once.
 
 ## 2026-10-23 rest-action closeout
 

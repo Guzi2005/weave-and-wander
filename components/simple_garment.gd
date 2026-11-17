@@ -21,8 +21,8 @@ func rebuild() -> void:
 		var sleeve := [Vector3(1.195,.14,.144),Vector3(1.35,.124,.13),
 			Vector3(1.42,.111,.123),Vector3(1.48,.100,.118),Vector3(1.55,.087,.111),
 			Vector3(1.64,.083,.103),Vector3(1.72,.080,.095),Vector3(1.78,.069,.081),
-			Vector3(1.83,.060,.070)]
-		var centers := [.30,.286,.276,.268,.258,.225,.195,.165,.14]
+			Vector3(1.83,.060,.070),Vector3(1.82,.052,.062)]
+		var centers := [.30,.286,.276,.268,.258,.225,.195,.165,.14,.115]
 		for i in sleeve.size():
 			var influence := 1.0 - smoothstep(1.20, 1.80, sleeve[i].x)
 			sleeve[i].y *= lerpf(1.0, cuff_width, influence)
@@ -61,7 +61,7 @@ func _append_part(rings: Array, centers: Array, side: float, vertices: PackedVec
 				+ normal.z * cos(angle) * (next.z - previous.z)) / dy
 			vertices.append(point)
 			normals.append(normal.normalized())
-			arm_weights.append(side * (1.0 - smoothstep(1.63, 1.83, point.y)))
+			arm_weights.append(side * (1.0 - smoothstep(1.70, 1.86, point.y)))
 	for row in rings.size() - 1:
 		for column in SEGMENTS:
 			var a := start + row * SEGMENTS + column

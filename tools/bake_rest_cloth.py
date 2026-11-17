@@ -6,7 +6,7 @@ from pathlib import Path
 import bpy
 from mathutils import Vector
 
-ROOT = Path('D:/GodotProjects/weave-and-wander/prototypes/dollhouse-3d')
+ROOT = Path('D:/workspace/weave-and-wander')
 INPUT = json.loads((ROOT / 'captures/rest_cloth_input.json').read_text())
 
 

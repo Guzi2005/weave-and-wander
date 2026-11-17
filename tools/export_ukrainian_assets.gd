@@ -7,6 +7,7 @@ extends SceneTree
 const Doll = preload("res://scripts/ukrainian_doll.gd")
 const Stripe = preload("res://components/motifs/stripe_motif.gd")
 const Tassel = preload("res://components/motifs/tassel_motif.gd")
+const WikiPaths = preload("res://tools/wiki_paths.gd")
 
 var failures: Array[String] = []
 
@@ -25,7 +26,7 @@ func _initialize() -> void:
 
 
 func _export() -> void:
-	var output := ProjectSettings.globalize_path("res://tools/ww-wiki/public/assets/models")
+	var output := WikiPaths.public_assets_dir().path_join("models")
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		if args.size() != 2 or args[0] != "--output" or not args[1].is_absolute_path():
@@ -71,10 +72,9 @@ func _export() -> void:
 				var mat := StandardMaterial3D.new()
 				mat.resource_name = "Flat ink / " + str(part.name)
 				mat.albedo_color = source.get_shader_parameter("pigment")
-				if source.shader == preload("res://shaders/doll_costume.gdshader"):
-					mat.vertex_color_use_as_albedo = source.get_shader_parameter("use_vertex_color")
-					if source.get_shader_parameter("use_pigment_map"):
-						mat.albedo_texture = source.get_shader_parameter("pigment_map")
+				mat.vertex_color_use_as_albedo = source.get_shader_parameter("use_vertex_color") == true
+				if source.get_shader_parameter("use_pigment_map") == true:
+					mat.albedo_texture = source.get_shader_parameter("pigment_map")
 				mat.roughness = 1.0
 				if str(part.name).begins_with("Ukr") or str(part.name) == "ReferenceBob":
 					mat.roughness = .38 if str(part.name).begins_with("UkrBeads") else .92
@@ -122,7 +122,7 @@ func _export() -> void:
 		print("ASSET_EXPORT ", entry.model, " meshes=", mesh_count)
 		model.free()
 	doll.free()
-	var motif_dir := ProjectSettings.globalize_path("res://tools/ww-wiki/public/assets/motifs")
+	var motif_dir := WikiPaths.public_assets_dir().path_join("motifs")
 	DirAccess.make_dir_recursive_absolute(motif_dir)
 	_write_manifest(motif_dir)
 	for failure in failures: push_error(failure)

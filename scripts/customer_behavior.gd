@@ -260,7 +260,7 @@ func _decide(_customer: Node, _delta: float, _first: bool) -> int:
 		var definition: Resource = piece.definition
 		var colour: float = profile.color_score(definition) * profile.color_weight
 		var fit := _rng.randf_range(-0.30, 0.2)
-		var value := float(profile.budget - definition.price) / float(profile.budget) * 0.28
+		var value := float(profile.budget - visit._inventory.sale_price(piece)) / float(maxi(1,profile.budget)) * 0.28
 		var score := 0.32 + colour + fit + value
 		var keep: bool = score >= profile.threshold
 		(accepted if keep else rejected).append(piece)
@@ -307,7 +307,10 @@ func _checkout(_customer: Node, delta: float, first: bool) -> int:
 			actor.think("柜台没人，等一等")
 		return BT.Status.RUNNING
 	var cashier: Node3D = visit.facilities[visit._facility_index("counter","shop")].staff
-	if not visit._shop.checkout_exchange.advance(actor,cashier,delta,accepted):
+	var service_rate := 1.0
+	if is_instance_valid(visit.get("_progression")):
+		service_rate = visit._progression.service_multiplier(cashier)
+	if not visit._shop.checkout_exchange.advance(actor,cashier,delta * service_rate,accepted):
 		stage = visit._shop.checkout_exchange.phase
 		return BT.Status.RUNNING
 	var amount := 0

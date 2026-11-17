@@ -93,7 +93,9 @@ func build() -> void:
 		elif _binds_surface_detail(part.material_override):
 			# Flat-ink materials that sample a pigment map or vertex colours lose both
 			# under the pigment-only room material; the full source material stays on the prop.
-			prop_materials.append(part.material_override)
+			var prop_material := part.material_override.duplicate() as ShaderMaterial
+			prop_material.set_shader_parameter("cloth_contact_enabled", false)
+			prop_materials.append(prop_material)
 		else:
 			var material := ShaderMaterial.new()
 			material.shader = ROOM_SHADER
@@ -177,9 +179,15 @@ func apply_material_data(data: Dictionary) -> void:
 		if parts[index].get_meta("material_role","") == "flower" and definition.accessory_kind != "flower": continue
 		# Ties and straps are cut from the same cloth; thread is a seam detail.
 		var mat := APPEARANCE.make_material(definition.material_data,true,uv_metres)
+		var previous := worn_materials[index] as ShaderMaterial
+		if previous != null and previous.get_shader_parameter("cloth_contact_enabled") == true:
+			for parameter in ["cloth_contact_enabled", "cloth_contact_arms", "cloth_layer_clearance", "cloth_surface_lift", "cloth_outer_layer", "cloth_skirt_side", "cloth_layer_depth", "cloth_secondary_enabled"]:
+				mat.set_shader_parameter(parameter, previous.get_shader_parameter(parameter))
 		worn_materials[index] = mat
-		prop_materials[index] = mat
-		parts[index].material_override = mat
+		var prop := mat.duplicate() as ShaderMaterial
+		prop.set_shader_parameter("cloth_contact_enabled", false)
+		prop_materials[index] = prop
+		parts[index].material_override = mat if location == "worn" else prop
 
 
 func attach_flower(accessory: Node3D) -> bool:
@@ -320,6 +328,10 @@ func update_attachment() -> void:
 		global_transform = customer.body_rig.global_transform
 		for bone in skeleton.get_bone_count():
 			skeleton.set_bone_pose(bone, customer.rig.skeleton.get_bone_pose(bone))
+		_sync_rest_shapes(customer)
+		if customer.get("body_contact") != null:
+			for material in worn_materials:
+				if material is ShaderMaterial: customer.body_contact.apply(material)
 	elif location == "carried":
 		global_transform = customer.carry_transform(self)
 	elif location == "packed" and container != null and is_instance_valid(container.get_ref()):
@@ -328,6 +340,33 @@ func update_attachment() -> void:
 		var remote: RemoteTransform3D = _attachment.get_ref()
 		remote.global_transform = global_transform
 	skeleton.force_update_all_bone_transforms()
+
+
+func _sync_rest_shapes(customer: Node) -> void:
+	var values := {}
+	if presentation == "Worn":
+		# Rig weights also cover explicit pose_rest calls and paused pose previews.
+		for source: MeshInstance3D in customer.rig.meshes:
+			if not is_instance_valid(source): continue
+			for i in source.mesh.get_blend_shape_count():
+				var label: StringName = source.mesh.get_blend_shape_name(i)
+				if label in Forms.REST_SHAPES and not values.has(label):
+					values[label] = source.get_blend_shape_value(i)
+		# A wearer without any rest-enabled base clothes still has accepted rest state.
+		var blend = customer.get("_rest_blend")
+		var amount := smoothstep(0.0, 1.0, float(blend)) if blend != null else 0.0
+		var nap: bool = customer.get("rest_mode") == "nap"
+		var nap_weights = customer.get("_nap_pose_weights")
+		if not nap_weights is Vector4: nap_weights = Vector4(1, 0, 0, 0)
+		for mode in Forms.REST_SHAPES.size():
+			var label: StringName = Forms.REST_SHAPES[mode]
+			if not values.has(label):
+				values[label] = (amount * nap_weights[mode - 1] if mode > 0 else 0.0) if nap else (amount if mode == 0 else 0.0)
+	for part in parts:
+		for i in part.mesh.get_blend_shape_count():
+			var label: StringName = part.mesh.get_blend_shape_name(i)
+			if label in Forms.REST_SHAPES:
+				part.set_blend_shape_value(i, values.get(label, 0.0))
 
 
 func _bind_attachment(customer: Node3D) -> void:

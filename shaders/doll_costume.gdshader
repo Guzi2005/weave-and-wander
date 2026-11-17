@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 #include "res://shaders/pop_up.gdshaderinc"
+#include "res://shaders/cloth_contact.gdshaderinc"
 
 // Same ink plates, normal-based tone steps and paper tooth as doll_volume.
 // Textile maps and per-bead colours extend that palette; no PBR light response.
@@ -8,7 +9,8 @@ uniform vec4 pigment : source_color = vec4(1.0);
 uniform sampler2D pigment_map : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool use_pigment_map = false;
 uniform bool use_vertex_color = false;
-uniform float relief_strength = 0.06;
+// Opt-in fold readability for cloth. 0.0 keeps the shared flat-ink look exactly.
+uniform float relief_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float tooth = 0.075;
 uniform float tone_steps = 2.0;
 uniform float backface_shade = 0.0;
@@ -16,6 +18,7 @@ varying vec3 local_position;
 varying vec3 world_normal;
 
 void vertex() {
+	contact_cloth(VERTEX, NORMAL, BONE_INDICES, BONE_WEIGHTS, UV2);
 	local_position = VERTEX;
 	world_normal = MODEL_NORMAL_MATRIX * NORMAL;
 	fold_paper(VERTEX, NORMAL, MODEL_MATRIX);
@@ -37,5 +40,5 @@ void fragment() {
 	float level = clamp((light + 0.45) / 1.4, 0.0, 1.0);
 	float stepped = floor(level * tone_steps) / tone_steps;
 	float lining = FRONT_FACING ? 1.0 : 1.0 - backface_shade;
-	ALBEDO = ink * (1.0 - relief_strength + relief_strength * level) * lining * (1.0 + (grain - 0.5) * tooth * fade);
+	ALBEDO = ink * (0.94 + 0.06 * stepped) * (1.0 - relief_strength + relief_strength * level) * lining * (1.0 + (grain - 0.5) * tooth * fade);
 }

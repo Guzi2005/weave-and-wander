@@ -1,5 +1,6 @@
 extends SceneTree
 const Definition = preload("res://scripts/garment_definition.gd")
+const WikiPaths = preload("res://tools/wiki_paths.gd")
 func _initialize(): run.call_deferred()
 func run():
 	for style in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,17]:
@@ -31,7 +32,7 @@ func run():
 		var doc := GLTFDocument.new()
 		var state := GLTFState.new()
 		if doc.append_from_scene(model,state) != OK: quit(1); return
-		var path: String = "res://tools/ww-wiki/public/assets/models/"+Definition.DESIGN_IDS[style]+".glb"
+		var path: String = WikiPaths.public_assets_dir().path_join("models").path_join(Definition.DESIGN_IDS[style]+".glb")
 		if doc.write_to_filesystem(state,path) != OK: quit(1); return
 		print("EXPORTED ",style," ",path)
 		model.free()

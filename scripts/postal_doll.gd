@@ -1,4 +1,4 @@
-extends "res://scripts/volume_doll.gd"
+extends "res://scripts/game_body_doll.gd"
 
 var riding := false
 var pedal_phase := 0.0
@@ -146,6 +146,7 @@ func _update_puppet_motion(delta: float) -> void:
 	if not riding:
 		super._update_puppet_motion(delta)
 		_blend_mount_pose()
+		if body_contact != null: body_contact.update()
 		return
 	body_rig.rotation.y = PI*.5
 	_facing = PI*.5
@@ -172,3 +173,4 @@ func _update_puppet_motion(delta: float) -> void:
 	rig._offset("HemBack",Vector3(0,.07,-.12))
 	rig.skeleton.force_update_all_bone_transforms()
 	_blend_mount_pose()
+	if body_contact != null: body_contact.update()

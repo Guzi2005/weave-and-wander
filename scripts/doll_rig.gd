@@ -7,10 +7,12 @@ var skeleton: Skeleton3D
 var bones: Dictionary = {}
 var meshes: Array[MeshInstance3D] = []
 var long_garment := true
+var relaxed_arm_angles := Vector2.ZERO
 
 
 func bind(model: Node3D, covered_legs: bool, keep_covered_legs := false) -> void:
 	long_garment = covered_legs
+	relaxed_arm_angles = model.get_meta("relaxed_arm_angles", Vector2.ZERO)
 	skeleton = Skeleton3D.new()
 	skeleton.name = "Skeleton3D"
 	model.add_child(skeleton)
@@ -161,7 +163,7 @@ func _semantic(mesh: Node) -> String:
 	if mesh.has_meta("garment_arm_weights"):
 		return "garment"
 	var parent := mesh.get_parent()
-	var shoe := str(mesh.name) in ["FlatSole", "ShoeUpper"]
+	var shoe := str(mesh.name) in ["FlatSole", "ShoeUpper", "InstepStrap", "WhiteSockInstep"]
 	while parent != null:
 		match str(parent.name):
 			"HairSlot": return "hair"
@@ -179,6 +181,9 @@ func _semantic(mesh: Node) -> String:
 func _weights(semantic: String, label: String, point: Vector3, arm_weight: float = 0.0) -> Array:
 	var ids := [bones["Spine"], 0, 0, 0]
 	var values := [1.0, 0.0, 0.0, 0.0]
+	if label == "HosieryWaist":
+		var waist_blend := smoothstep(1.14, 1.40, point.y)
+		return [[bones.Hips, bones.Spine, 0, 0], [1.0-waist_blend, waist_blend, 0.0, 0.0]]
 	if label.begins_with("MosuoBeadStrands"):
 		# The nape follows the head, shoulder/chest follow the torso; lower strands
 		# rest against the front skirt rather than orbiting with the head bone.
@@ -192,8 +197,9 @@ func _weights(semantic: String, label: String, point: Vector3, arm_weight: float
 	elif semantic.begins_with("shoe"):
 		ids[0] = bones["Foot" + semantic.right(1)]
 	elif semantic == "garment":
-		var side := "L" if arm_weight < 0 else "R"
+		var side := "L" if (arm_weight < -0.001 or (absf(arm_weight) <= 0.001 and point.x < 0)) else "R"
 		var sleeve := absf(arm_weight)
+		sleeve = clampf(sleeve, 0.0, 1.0)
 		var upper := smoothstep(1.32, 1.64, point.y)
 		var spine := smoothstep(1.23, 1.68, point.y)
 		ids = [bones["Spine"], bones["Hips"], bones["UpperArm" + side], bones["Forearm" + side]]
@@ -202,11 +208,12 @@ func _weights(semantic: String, label: String, point: Vector3, arm_weight: float
 		var side := semantic.right(1)
 		if label == "InternalShoulder":
 			ids[0] = bones["Spine"]
-		elif label in ["Mitten", "Thumb"]:
+		elif label in ["Mitten", "Thumb", "HandMannequin", "ArmMannequinThumb"]:
 			ids[0] = bones["Hand" + side]
 		else:
 			var upper := smoothstep(1.32, 1.64, point.y)
-			var anchor := smoothstep(1.66, 1.79, point.y)
+			var medial := clampf((0.145 - absf(point.x)) / 0.035, 0.0, 1.0)
+			var anchor := medial * smoothstep(1.76, 1.86, point.y) * 0.40
 			ids = [bones["UpperArm" + side], bones["Forearm" + side], bones["Spine"], 0]
 			values = [upper * (1.0 - anchor), (1.0 - upper) * (1.0 - anchor), anchor, 0.0]
 	elif semantic.begins_with("leg"):
@@ -250,6 +257,9 @@ func animate(wave: float, movement: float, activity: String, work_phase: float) 
 				part.set_blend_shape_value(shape,0.0)
 	# A four-second breathing cycle affects the torso, not the planted feet.
 	var breath := sin(work_phase * TAU / 4.0) * (1.0 - movement)
+	# Two gentle rises per stride, lowest at alternating foot contacts.
+	# Move hips and all descendants; the foot correction below keeps soles grounded.
+	_offset("Hips", Vector3(0, .018 * (1.0 + cos(wave * 2.0)) * movement, 0))
 	_rotate("Spine", Vector3(0.045 * movement + breath * .009, 0, cos(wave) * 0.012 * movement))
 	_offset("Spine", Vector3(0, breath * .003, 0))
 	_rotate("Head", Vector3(-breath * .004, 0, 0))
@@ -261,12 +271,14 @@ func animate(wave: float, movement: float, activity: String, work_phase: float) 
 		_rotate("Thigh" + suffix, Vector3(thigh, 0, 0))
 		_rotate("Shin" + suffix, Vector3(knee, 0, 0))
 		_rotate("Foot" + suffix, Vector3(-thigh - knee, 0, 0))
-		var swing := -stride * 0.29
+		var swing := -stride * 0.29 + relaxed_arm_angles.x
+		var spread: float = side * relaxed_arm_angles.y
 		var elbow := -0.06 * movement
 		if activity in ["sewing", "stocking", "checkout", "browsing"]:
 			swing = lerpf(-0.48 + sin(work_phase * 3 + side) * 0.08, swing, movement)
 			elbow = lerpf(-0.36, elbow, movement)
-		_rotate("UpperArm" + suffix, Vector3(swing, 0, 0))
+			spread *= movement
+		_rotate("UpperArm" + suffix, Vector3(swing, 0, spread))
 		_rotate("Forearm" + suffix, Vector3(elbow, 0, 0))
 		# Compensate the planted foot so its flat sole does not sink or roll.
 		skeleton.force_update_all_bone_transforms()
@@ -401,7 +413,12 @@ func place_foot(suffix: String, target: Vector3) -> void:
 	var forward := (Vector3.FORWARD*-1.0-direction*direction.dot(Vector3.BACK)).normalized()
 	var knee := hip+direction*along+forward*sqrt(maxf(0,a*a-along*along))
 	# A pedal reach must carry the skirt forward with the bent knee.
-	if long_garment:
+	var seated_cloth := false
+	for part in meshes:
+		if part.get_meta("rest_cloth",false) and part.get_blend_shape_value(0)>.5:
+			seated_cloth = true
+			break
+	if long_garment and not seated_cloth:
 		var front := skeleton.get_bone_rest(bones.HemFront).origin.z
 		var required := maxf(0,knee.z+.14-front)
 		var current := skeleton.get_bone_pose_position(bones.HemFront)-skeleton.get_bone_rest(bones.HemFront).origin

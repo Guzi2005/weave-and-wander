@@ -7,12 +7,12 @@ extends Resource
 ## per color so each can share the doll's flat-ink material pipeline.
 
 @export var colors: Array[Color] = [Color("d9b13b"), Color("7e4a8c")]
-@export_range(4, 64) var strand_count: int = 28
-@export_range(0, 40) var puff_count: int = 12
-@export_range(.02, .3) var length: float = .12
-@export_range(.01, .12) var spread: float = .05
-@export_range(.001, .02) var strand_radius: float = .004
-@export_range(.004, .04) var puff_radius: float = .014
+@export_range(4, 64) var strand_count: int = 24
+@export_range(0, 40) var puff_count: int = 14
+@export_range(.02, .3) var length: float = .095
+@export_range(.01, .12) var spread: float = .038
+@export_range(.001, .02) var strand_radius: float = .0026
+@export_range(.004, .04) var puff_radius: float = .012
 @export var seed: int = 7
 
 const Mosuo = preload("res://components/mosuo_costume.gd")
@@ -27,35 +27,27 @@ func build(top: Vector3) -> Dictionary:
 			"arm_weights": PackedFloat32Array()}
 	# Bound head uses the first color.
 	Mosuo._append_sphere(groups[0].vertices, groups[0].indices, groups[0].arm_weights,
-		top + Vector3(0, .008, 0), .020)
+		top + Vector3(0, .004, 0), .012)
 	for strand in strand_count:
 		var color_index := strand % colors.size()
 		var data: Dictionary = groups[color_index]
 		var angle := TAU * strand / float(strand_count) + rng.randf_range(-.06, .06)
 		var direction := Vector3(cos(angle), 0, sin(angle))
-		var strand_length := length * rng.randf_range(.75, 1.05)
-		var from := top + direction * .010
-		var mid := top + direction * (spread * .45) + Vector3(0, -strand_length * .55, 0)
-		var to := top + direction * spread + Vector3(0, -strand_length, 0)
+		var strand_length := length * rng.randf_range(.80, 1.02)
+		var from := top + direction * .006
+		var mid := top + direction * (spread * .35) + Vector3(0, -strand_length * .50, 0)
+		var to := top + direction * (spread * .70) + Vector3(0, -strand_length, 0)
 		_strand(from, mid, strand_radius, data)
 		_strand(mid, to, strand_radius * .85, data)
 	for puff in puff_count:
 		var color_index := puff % colors.size()
 		var data: Dictionary = groups[color_index]
 		var angle := TAU * puff / float(puff_count) + rng.randf_range(-.2, .2)
-		var drop := length * rng.randf_range(.82, 1.04)
-		var radial := spread * sqrt(rng.randf())
+		var drop := length * rng.randf_range(.80, 1.05)
+		var radial := spread * 0.75 * sqrt(rng.randf())
 		var center := top + Vector3(cos(angle) * radial, -drop, sin(angle) * radial)
-		var radius := puff_radius * rng.randf_range(.75, 1.2)
+		var radius := puff_radius * rng.randf_range(.85, 1.15)
 		Mosuo._append_sphere(data.vertices, data.indices, data.arm_weights, center, radius)
-		# Individual bent yarn tips break up the silhouette of each wool tuft.
-		for fiber in 14:
-			var azimuth := fiber * 2.39996 + angle
-			var dy := 1.0 - 2.0 * (fiber + .5) / 14.0
-			var radial_dir := sqrt(1.0 - dy * dy)
-			var axis := Vector3(radial_dir * cos(azimuth), dy, radial_dir * sin(azimuth))
-			var tip := center + axis * radius * rng.randf_range(1.16, 1.42)
-			_strand(center + axis * radius * .76, tip + Vector3.DOWN * .003, strand_radius * .38, data)
 	var out := {}
 	for index in groups.size():
 		var data: Dictionary = groups[index]

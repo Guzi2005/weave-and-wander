@@ -1,6 +1,10 @@
-# Weave & Wander: 3D Doll Study
+# weave-and-wander
 
-独立的 Godot 4.7.1 对照工程。纸偶版仍在 `../dollhouse`，没有被覆盖；封存包在 `../snapshots/paper-puppet-v1-20261010.zip`。
+正式游戏工程与 Git 根目录：`D:/workspace/weave-and-wander`。开发入口为 `project.godot`，启动脚本在本目录。
+
+Wiki 是相邻的独立工程：`D:/workspace/W&W Wiki`。游戏资产导出脚本通过 `tools/wiki_paths.gd` 定位它。
+
+Godot 4.7.1 正式游戏工程。历史纸偶版仍在 `D:/GodotProjects/weave-and-wander/prototypes/dollhouse`，没有被覆盖；封存包在 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/paper-puppet-v1-20261010.zip`。
 
 ## 打开
 
@@ -17,7 +21,7 @@
 
 2026-10-12：人物身形暂定，不再扩展复杂肩袖曲面；本轮只修正侧面头型与五官贴合。前店完成后，按用户新要求扩展为左右相连的三个房间。
 
-首要视觉基准是用户反复选定的 `captures/dolls_3d_turntable.gif`，封存副本为 `../snapshots/doll-silhouette-reference-20261010.gif`。该 GIF 不覆盖、不重生成。原作侧面截图只作为补充参考。
+首要视觉基准是用户反复选定的 `captures/dolls_3d_turntable.gif`，封存副本为 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/doll-silhouette-reference-20261010.gif`。该 GIF 不覆盖、不重生成。原作侧面截图只作为补充参考。
 
 用户已明确停止复杂曲面路线：采用简单身筒、内藏袖根、向下展开的锥形宽袖和独立服装部件。观感与可复用性优先，不再以连续肩袖曲面作为默认目标。当前实现是按参考重建，不是找回了该 GIF 对应的旧源代码；新截图仍需用户认可，不能自动替换视觉基准。
 
@@ -35,7 +39,7 @@
 
 默认 `components/simple_garment.gd` 生成身筒和左右袖筒三个简单网格部分，袖根藏在身筒中。三部分并入同一渲染网格，但不宣称是焊接的连续曲面。肩骨转轴内藏，袖根权重过渡到躯干；默认垂臂姿态直接写入造型，不再用反向肩肘旋转收窄模型。
 
-连续曲面版本保留为实验组件 `components/garment_shell.gd`，默认模板与运行时均不调用它的曲面生成方法。完整实验快照在 `../snapshots/continuous-shoulder-experiment-20261011.zip`。
+连续曲面版本保留为实验组件 `components/garment_shell.gd`，默认模板与运行时均不调用它的曲面生成方法。完整实验快照在 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/continuous-shoulder-experiment-20261011.zip`。
 
 纽扣为带平底的半椭球网格，按钮行节点控制数量、间距和尺寸，并贴合上衣表面。短褂前襟从身筒网格生成。可复用模板与限制见 `components/README.md`。
 
@@ -95,7 +99,7 @@
 
 帽架现在位于原前店缝纫机的位置；原先它实际在前店左后方，被成衣架遮住，并非独立的后排经营设施。缝纫台移入左侧工坊，寻路、操作点和生产岗位随之调整，总计 13 个设施。`components/sewing_machine.gd` 提供带真实机身开口、针杆、压脚、送布齿、手轮、调节盘、线轴走线的程序化机器；脚踏和电线随桌面组件生成。前店的帽饰岗位用于补货，真正缝制只在工坊的缝制台完成。
 
-本轮预览：`captures/single_piece_outfit_*`、`single_piece_paused_moved_*`、`single_piece_displays_*`、`single_piece_shop_*`、`sewing_machine_workshop_*`。这是通用基础款验证，民族服饰出处研究、文创商品、策略树、采风、采购、DIY 与编辑器管线见 `../../Docs/DEVELOPMENT_ROADMAP.md` 的后续主线，未宣称实装。
+本轮预览：`captures/single_piece_outfit_*`、`single_piece_paused_moved_*`、`single_piece_displays_*`、`single_piece_shop_*`、`sewing_machine_workshop_*`。这是通用基础款验证，民族服饰出处研究、文创商品、策略树、采风、采购、DIY 与编辑器管线见 `Docs/DEVELOPMENT_ROADMAP.md` 的后续主线，未宣称实装。
 
 2026-10-15：`scripts/shop_inventory.gd` 管理每件服饰实物，开店时衣架 5 件、库房 3 件。每件记录款式（长裙、围裙装、短褂）、配色、价格、位置（衣架槽位、库房、衣篓、拿在手上、穿在身上、已售出）和当前顾客。衣架上挂的是人偶同款的立体服装网格；被取走后槽位真实空出，试穿过的衣服搭在衣篓上，售出后随顾客离店。原纸片画衣和衣篓里的假叠衣已移除，只保留衣架。
 
@@ -105,15 +109,15 @@
 
 顾客头顶的想法气泡画在界面层，显示心愿、所选衣服的色块、照镜后的结论和排队状态；场景内仍不放任何三维文字。库存事件（预留、试穿决定及理由与评分、退回、补货、缝制、成交）记录在 `ShopInventory.events` 的内存中，尚未写入 JSONL 日志或存档。员工代理挑衣、玩家亲自服务、声誉、定价折扣不在本轮范围。
 
-预览：`captures/inventory_opening_*`、`inventory_wish_*`、`inventory_mirror_*`、`inventory_basket_*`，分别有 1600x900 与 1280x800 两种尺寸，均为实际 GPU 截图。修改前源码在 `../snapshots/before-inventory-decisions-20261015.zip`。
+预览：`captures/inventory_opening_*`、`inventory_wish_*`、`inventory_mirror_*`、`inventory_basket_*`，分别有 1600x900 与 1280x800 两种尺寸，均为实际 GPU 截图。修改前源码在 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-inventory-decisions-20261015.zip`。
 
-预览：`captures/single_room.png`、`single_room_tablet.png`、`single_room_wide_tablet.png`。`single_room_running.gif` 是实际 GPU 录制的二倍速缩时预览；不是生成的概念图。新场景覆盖原型入口，旧房间源脚本已存入 `../snapshots/before-single-room-20261012.zip`。
+预览：`captures/single_room.png`、`single_room_tablet.png`、`single_room_wide_tablet.png`。`single_room_running.gif` 是实际 GPU 录制的二倍速缩时预览；不是生成的概念图。新场景覆盖原型入口，旧房间源脚本已存入 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-single-room-20261012.zip`。
 
 上一版悬浮 UI 与无描边屋顶预览：`captures/floating_roof_1600x900.png`、`floating_roof_1280x960.png`、`floating_roof_1280x800.png`。旧单房间截图和 GIF 保留用于对照。图标来自 [Lucide](https://lucide.dev/)，本地许可与来源在 `assets/icons/`，仅把 SVG 线条色统一为白色，运行时由控件着色；图标笔画不作为场景物体描边。
 
-相连房间与卡片预览：`captures/connected_shop_1600x900.png`、`connected_workshop_1600x900.png`、`connected_archive_1600x900.png`，另有相同前缀的 1280x960 与 1280x800 图。前一版源文件已备份至 `../snapshots/before-adjacent-rooms-20261012.zip`，旧参考 GIF 不覆盖。
+相连房间与卡片预览：`captures/connected_shop_1600x900.png`、`connected_workshop_1600x900.png`、`connected_archive_1600x900.png`，另有相同前缀的 1280x960 与 1280x800 图。前一版源文件已备份至 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-adjacent-rooms-20261012.zip`，旧参考 GIF 不覆盖。
 
-2026-10-13 翻盖屋顶预览：`captures/hinged_roof_demo.gif` 是实际 GPU 渲染的 84 帧开合演示，人物在此录像中暂停。`hinged_roof_closed_*`、`hinged_roof_left_open_*`、`hinged_roof_right_open_*` 各有 1600x900、1280x960、1280x800 截图。修改前增量源码存于 `../snapshots/before-hinged-roof-20261013.zip`。
+2026-10-13 翻盖屋顶预览：`captures/hinged_roof_demo.gif` 是实际 GPU 渲染的 84 帧开合演示，人物在此录像中暂停。`hinged_roof_closed_*`、`hinged_roof_left_open_*`、`hinged_roof_right_open_*` 各有 1600x900、1280x960、1280x800 截图。修改前增量源码存于 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-hinged-roof-20261013.zip`。
 
 ## 街景与邮递员
 
@@ -131,7 +135,7 @@
 
 2026-10-13 来访动作衔接：接近门口减速停车，以 1.2 秒骨骼姿态混合从骑姿落到车旁站姿，脚撑随之展开；从邮包侧下车，避免邮包穿过车座。送报后回到同一侧上车，收起脚撑，再逐渐加速离开。位置与骨骼都连续更新，并跟随经营暂停和速度；过渡期间补偿鞋底高度。仍是简化的程序动画，不是完整抬腿跨车的手工动作捕捉或车辆物理。
 
-预览：`captures/street_exterior_1600x900.png`、`street_interior_delivery_1600x900.png`、`street_postman_close_1600x900.png`，补充 `street_postman_rear_1600x900.png`、`street_postman_walk_1600x900.png`；另有 1280x960、1280x800 版本。`captures/street_post_demo.gif` 为实际 GPU 录制的加速演示，`captures/postal_clothing_cycle.gif` 展示完整踩踏周期的衣物变形。`captures/postal_stop_and_start.gif` 是停车下车、回车出发两段近景实机片段的拼接，省略中间店内送报。修改前源文件在 `../snapshots/before-street-post-20261013.zip`，旧人物基准 GIF 与纸偶工程不变。
+预览：`captures/street_exterior_1600x900.png`、`street_interior_delivery_1600x900.png`、`street_postman_close_1600x900.png`，补充 `street_postman_rear_1600x900.png`、`street_postman_walk_1600x900.png`；另有 1280x960、1280x800 版本。`captures/street_post_demo.gif` 为实际 GPU 录制的加速演示，`captures/postal_clothing_cycle.gif` 展示完整踩踏周期的衣物变形。`captures/postal_stop_and_start.gif` 是停车下车、回车出发两段近景实机片段的拼接，省略中间店内送报。修改前源文件在 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-street-post-20261013.zip`，旧人物基准 GIF 与纸偶工程不变。
 
 ## 验证
 
@@ -151,7 +155,7 @@
 - `tests/encode_roof_preview.py`：验证九张新截图非空，验证关闭、左开、右开、再关闭的像素变化，并编码实际屋顶开合动图；不替代真实平板触控与性能测试。
 - `tests/street_post_test.gd`：真实输入事件验证滚轮及捏合、UI 滚轮隔离、暂停时缩放、回到相同近景、远景防误点；验证顾客从正门进出、门开启时机、连续路线、行人运动、三天订阅/无订阅投递、32 个骑行姿势脚踏贴合。GPU 模式额外输出三种横屏尺寸截图与运行帧。
 - `tests/postal_clothing_test.gd`：240 个步行/骑行/上下车姿态（四种停踏角度），检测衣摆顶点及三角面中心是否进入裤腿、鞋底是否沉入地面；检查人物印刷材质、内层继承、蒙皮权重归一与后脑帽围高度。采样测试不等同于任意动画下的连续布料碰撞保证。
-- `tests/character_print_test.gd`：检查全部角色与三间房、街道、自行车的材质分离，GPU 模式检查人物分色和颗粒参数；`--capture-style` 输出整景、无角色环境对照和人物近景，不覆盖 P2 参考图 `camera_default_1600x900.png`。修改前源码保存于 `../snapshots/before-character-print-20261015.zip`。
+- `tests/character_print_test.gd`：检查全部角色与三间房、街道、自行车的材质分离，GPU 模式检查人物分色和颗粒参数；`--capture-style` 输出整景、无角色环境对照和人物近景，不覆盖 P2 参考图 `camera_default_1600x900.png`。修改前源码保存于 `D:/GodotProjects/weave-and-wander/prototypes/snapshots/before-character-print-20261015.zip`。
 - `tests/postal_visit_preview.gd`：停车脚撑、上下车连续状态、暂停时骨骼静止、出发加速和一次投递；`--record-postal-stop` 录制近景片段，`tests/encode_postal_stop.py` 验证画面变化并生成 GIF。
 - `tests/camera_pan_test.gd`：默认中上构图、左键/中键平移、右键转动、单指/双指平移、员工与 UI 输入隔离、设施拖拽不误派工、暂停、缩放保持偏移、定位重置、边界和失焦释放；`--capture-camera` 输出调整前后实机截图。
 - `tests/encode_street_preview.py`：验证外景、内景、邮递员近景非空及运行帧变化，编码街景与邮递员演示。

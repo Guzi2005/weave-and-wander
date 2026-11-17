@@ -21,6 +21,12 @@ var _serial := 0
 var fabric_batches: Array[Dictionary] = [{"id":"opening_cloth","meters":8.0,"pattern":"plain","palette":0,"source":"opening"}]
 var materials: RefCounted = preload("res://scripts/material_ledger.gd").new()
 var produced_orders: Dictionary = {}
+var price_policy: Callable
+
+func sale_price(item: Node3D) -> int:
+	if not item.reserved_by.is_empty() and item.has_meta("quoted_price"):
+		return int(item.get_meta("quoted_price"))
+	return int(price_policy.call(item.definition.price)) if price_policy.is_valid() else int(item.definition.price)
 
 
 func _init() -> void:
@@ -322,7 +328,7 @@ func choose_for(customer: Node, profile: RefCounted) -> Dictionary:
 	var styled := false
 	for item in on_rack():
 		styled = styled or profile.wants(item.definition)
-		var score: float = profile.browse_score(item.definition)
+		var score: float = profile.browse_score(item.definition, sale_price(item))
 		if score > best_score:
 			best_score = score
 			best = item
@@ -331,17 +337,18 @@ func choose_for(customer: Node, profile: RefCounted) -> Dictionary:
 		events.append({"event": "browse_failed", "customer_id": customer.customer_id, "reason": reason})
 		return {"item": null, "reason": reason}
 	var chosen: Array[Node3D] = [best]
-	var remaining: int = profile.budget - best.definition.price
+	var remaining: int = profile.budget - sale_price(best)
 	for candidate in on_rack():
 		if chosen.size() >= profile.max_pieces:
 			break
-		if candidate == best or candidate.definition.price > remaining:
+		if candidate == best or sale_price(candidate) > remaining:
 			continue
 		if profile.color_score(candidate.definition) < 0 or not chosen.all(func(piece: Node3D) -> bool: return piece.definition.compatible(candidate.definition)):
 			continue
 		chosen.append(candidate)
-		remaining -= candidate.definition.price
+		remaining -= sale_price(candidate)
 	for piece in chosen:
+		piece.set_meta("quoted_price", sale_price(piece))
 		piece.reserve(customer)
 		record("reserved", piece, customer)
 	return {"item": best, "items": chosen, "reason": ""}
@@ -418,9 +425,9 @@ func sew_new(rng: RandomNumberGenerator) -> Node3D:
 func checkout(item: Node3D, customer: Node) -> int:
 	if not service_authorizer.is_valid() or not service_authorizer.call():
 		return 0
+	var amount: int = sale_price(item)
 	if not item.settle(customer):
 		return 0
-	var amount: int = item.definition.price
 	transactions.append({"item_id": item.item_id, "customer_id": customer.customer_id, "price": amount, "worn": item.location == "worn"})
 	record("paid", item, customer)
 	return amount

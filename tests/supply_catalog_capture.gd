@@ -52,6 +52,8 @@ func _run() -> void:
 	panel.tabs.current_tab = 1
 	panel.refresh()
 	await _save("res://captures/supply_catalog_queue.png")
+	panel.pool_box.get_parent().show()
+	await _save("res://captures/order_pools.png")
 	print("SUPPLY_CATALOG_CAPTURE entries=", catalog.entries.size(), " queue=", catalog.queue.size(), " failures=", failures)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(catalog.save_path))
 	game.free()

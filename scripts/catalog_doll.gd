@@ -1,4 +1,4 @@
-extends "res://scripts/volume_doll.gd"
+extends "res://scripts/game_body_doll.gd"
 
 var catalog_style := 0
 @export_range(.012,.12,.002) var headband_min_width := .025

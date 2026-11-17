@@ -32,6 +32,7 @@ var entries: Array[Dictionary] = []
 var queue: Array[Dictionary] = []
 var completed_count := 0
 var random_auto_enabled := false
+var random_pools := {"colors": [], "styles": [], "patterns": [], "materials": []}
 
 var _entry_serial := 0
 var _job_serial := 0
@@ -441,6 +442,17 @@ func set_random_auto_enabled(value: bool) -> void:
 	save_catalog()
 
 
+func set_random_pool(key: String, values: Array) -> void:
+	if not random_pools.has(key):
+		return
+	random_pools[key] = values.duplicate()
+	save_catalog()
+
+
+func random_pool_accepts(key: String, value: String) -> bool:
+	return random_pools[key].is_empty() or value in random_pools[key]
+
+
 func _auto_random_order() -> void:
 	if not random_auto_enabled:
 		return
@@ -452,12 +464,20 @@ func _auto_random_order() -> void:
 	var storage_full: bool = inventory.in_location("storage").size() >= inventory.STORAGE_LIMIT
 	var accessory_full: bool = inventory.in_location("accessory").size() >= inventory.STORAGE_LIMIT
 	for fabric in ledger.fabric_batches:
+		if not random_pool_accepts("colors", (fabric.pigment as Color).to_html(false)):
+			continue
+		if not random_pool_accepts("materials", str(fabric.material)):
+			continue
+		if not random_pool_accepts("patterns", str(fabric.get("pattern_code", 0))):
+			continue
 		if not production.packages.has(str(fabric.id)):
 			continue
 		for thread in ledger.thread_batches:
 			if not production.packages.has(str(thread.id)):
 				continue
 			for style in RECIPES.RECIPES:
+				if not random_pool_accepts("styles", str(style)):
+					continue
 				if accessory_full if style == RECIPES.FLOWER_STYLE else storage_full:
 					continue
 				if not ledger.can_reserve(str(fabric.id), str(thread.id), production.size_factor, style, .35, .55):
@@ -585,7 +605,7 @@ func save_catalog() -> void:
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
 		return
-	var data := {"schema": SCHEMA, "entries": [], "random_auto_enabled": random_auto_enabled}
+	var data := {"schema": SCHEMA, "entries": [], "random_auto_enabled": random_auto_enabled, "random_pools": random_pools}
 	for entry in entries:
 		data.entries.append(_entry_to_dict(entry))
 	file.store_string(JSON.stringify(data, "  "))
@@ -594,6 +614,8 @@ func save_catalog() -> void:
 func load_catalog() -> bool:
 	entries.clear()
 	random_auto_enabled = false
+	for key in random_pools:
+		random_pools[key] = []
 	if not FileAccess.file_exists(save_path):
 		return false
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(save_path))
@@ -602,6 +624,13 @@ func load_catalog() -> bool:
 	if typeof(parsed.get("entries")) != TYPE_ARRAY:
 		return false
 	random_auto_enabled = bool(parsed.get("random_auto_enabled", false))
+	var saved_pools: Variant = parsed.get("random_pools", {})
+	if saved_pools is Dictionary:
+		for key in random_pools:
+			if saved_pools.get(key) is Array:
+				for value in saved_pools[key]:
+					if value is String:
+						random_pools[key].append(value)
 	for raw in parsed.entries:
 		var entry := _entry_from_dict(raw)
 		if entry.is_empty():

@@ -14,7 +14,7 @@ Godot 安装在其他位置时，可以运行：
 powershell -ExecutionPolicy Bypass -File .\启动针脚与远方.ps1 -GodotPath "D:\你的路径\Godot.exe"
 ```
 
-桌面已创建“Weave&Wander 针脚与远方”快捷方式，显式运行此项目的 `main.tscn`。开发版入口依赖本机已安装的 Godot，不是独立导出的发行版。
+桌面快捷方式为 `weave-and-wander.lnk`，指向 `D:/workspace/weave-and-wander/启动针脚与远方.ps1`，显式运行此项目的 `main.tscn`。开发版入口依赖本机已安装的 Godot，不是独立导出的发行版。
 
 在游戏内点击“恢复视角 · Home”或按 Home，可以退出人物跟随、恢复当前房间的默认观察角度与正常速度。如果编辑器调试器已暂停游戏，需先在编辑器恢复运行。
 

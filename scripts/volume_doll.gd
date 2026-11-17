@@ -19,6 +19,7 @@ var clothes_root: Node3D
 var hair_root: Node3D
 var skirt_root: Node3D
 var reference_costume := false
+@export var hosiery: Resource = preload("res://components/hosiery_style.gd").new()
 var rig: RefCounted
 var arms: Array[Node3D] = []
 var legs: Array[Node3D] = []
@@ -51,12 +52,59 @@ var rest_departing := false
 		expression_transition_seconds = clampf(value, 0.05, 3.0) if is_finite(value) else 0.35
 		if _expressions != null:
 			_expressions.set_transition_seconds(expression_transition_seconds)
+
+@export_group("Mannequin Appearance")
+@export_enum("0: Porcelain Peach", "1: Warm Tan", "2: Bronze Chestnut", "3: Rich Espresso", "4: Ivory Fair", "5: Soft Apricot", "6: Honey Amber", "7: Cocoa Chestnut", "8: Deep Chocolate", "9: Ebony Deep") var skin_preset := 0:
+	set(value):
+		skin_preset = value
+		skin_index = value
+		custom_skin_color = Color(0, 0, 0, 0)
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
+
+@export var custom_skin := Color(0, 0, 0, 0):
+	set(value):
+		custom_skin = value
+		custom_skin_color = value
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
+
+@export_enum("0: Dark Chestnut", "1: Soft Brunette", "2: Raven Charcoal", "3: Auburn Copper", "4: Ink Jet Black", "5: Golden Blonde", "6: Honey Flaxen", "7: Maple Russet", "8: Silver Frost", "9: Platinum Feather", "10: Pastel Mauve", "11: Forest Pine", "12: Midnight Navy") var hair_color_preset := 0:
+	set(value):
+		hair_color_preset = value
+		hair_color_index = value
+		custom_hair_color = Color(0, 0, 0, 0)
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
+
+@export var custom_hair := Color(0, 0, 0, 0):
+	set(value):
+		custom_hair = value
+		custom_hair_color = value
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
+
+@export_enum("0: Obsidian Espresso", "1: Warm Amber", "2: Chestnut Brown", "3: Sapphire Blue", "4: Aqua Lake", "5: Emerald Forest", "6: Olive Hazel", "7: Amethyst Violet", "8: Ruby Crimson", "9: Slate Grey", "10: Topaz Gold") var eye_color_preset := 0:
+	set(value):
+		eye_color_preset = value
+		eye_color_index = value
+		custom_eye_color = Color(0, 0, 0, 0)
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
+
+@export var custom_eye := Color(0, 0, 0, 0):
+	set(value):
+		custom_eye = value
+		custom_eye_color = value
+		if is_inside_tree() or is_instance_valid(body_rig):
+			_build_appearance()
 var _expressions: RefCounted
 var _syncing_expression_mode := false
 var attention: WeakRef
 var attention_time := 0.0
 var hand_targets: Dictionary = {}
 var foot_targets: Dictionary = {}
+var _pedal_contact := preload("res://scripts/pedal_cloth_contact.gd").new()
 var _gaze := Vector2.ZERO
 
 
@@ -145,11 +193,28 @@ func apply_reaches() -> void:
 		rig._rest_arm(side,target,Vector3(-.40 if side == "L" else .40,1.48,.18),1.0)
 	for side in foot_targets:
 		rig.place_foot(side,body_rig.to_local(foot_targets[side]))
+	if not foot_targets.is_empty() and _rest_blend > .8 and rest_mode != "nap":
+		_pedal_contact.update(rig)
+	elif _pedal_contact.active:
+		_pedal_contact.clear()
 
 
 func configure(data: Dictionary) -> void:
 	reference_costume = bool(data.get("reference", reference_costume))
+	if data.has("socks"):
+		hosiery = preload("res://components/hosiery_style.gd").new()
+		for key in data.socks:
+			if key in ["enabled", "length", "color", "pattern_color", "pattern", "repeats", "texture", "texture_scale"]:
+				hosiery.set(key, data.socks[key])
 	super.configure(data)
+
+
+func set_hosiery(settings: Dictionary) -> void:
+	hosiery = hosiery.duplicate() if hosiery != null else preload("res://components/hosiery_style.gd").new()
+	for key in settings:
+		if key in ["enabled", "length", "color", "pattern_color", "pattern", "repeats", "texture", "texture_scale"]:
+			hosiery.set(key, settings[key])
+	_build_appearance()
 
 
 func _costume_palette() -> Array:
@@ -176,6 +241,8 @@ func _build_appearance() -> void:
 	_stage_base.get_node("FloorSlot").free()
 	_expressions = null
 	if is_instance_valid(body_rig):
+		_pedal_contact.clear()
+		_pedal_contact = preload("res://scripts/pedal_cloth_contact.gd").new()
 		body_rig.free()
 	arms.clear()
 	legs.clear()
@@ -192,8 +259,13 @@ func _build_appearance() -> void:
 	if costume_collection == "ukrainian_photo_001":
 		preload("res://scripts/ukrainian_outfit.gd").new().apply(self)
 	_build_volume_head()
+	if hosiery != null:
+		hosiery.build(self)
+	_prepare_body_for_rig()
 	rig = RigScript.new()
 	rig.bind(body_rig, _covers_legs(), _keep_covered_legs())
+	if hosiery != null:
+		hosiery.apply(self)
 	rig.animate(0, 0, "idle", 0)
 	_setup_expressions()
 	body_rig.rotation.y = _facing
@@ -221,12 +293,20 @@ func _keep_covered_legs() -> bool:
 	return false
 
 
+func _prepare_body_for_rig() -> void:
+	pass
+
+
+func _new_garment_shell() -> MeshInstance3D:
+	return GarmentShell.new()
+
+
 func _build_volume_body() -> void:
 	var palette := _costume_palette()
 	var cloth: Color = palette[0]
 	var trim: Color = palette[1]
 	var linen: Color = palette[2]
-	var skin: Color = SKIN_TONES[skin_index]
+	var skin: Color = get_skin_color()
 	var shirt: Color = linen if outfit_style != 0 else cloth
 	# A continuous shoulder/chest-to-neck surface, with a gradual concave taper.
 	# The upper rings enter the head; no ellipsoid bulge at the collar.
@@ -235,7 +315,7 @@ func _build_volume_body() -> void:
 		Vector3(1.90,.111,.096),Vector3(1.94,.096,.088),Vector3(1.99,.092,.085),
 		Vector3(2.05,.092,.085),Vector3(2.10,.094,.087)],skin,40)
 	neck.set_meta("garment_slot", "")
-	_garment = GarmentShell.new()
+	_garment = _new_garment_shell()
 	_garment.name = "TailoredShell"
 	_garment.waist_height = 1.285 if outfit_style == 1 else (1.10 if outfit_style == 2 else 1.13)
 	_garment.material_override = _material(shirt)
@@ -265,8 +345,7 @@ func _build_volume_body() -> void:
 		wrist.position = Vector3(side * 0.145, 0, 0)
 		arm.add_child(wrist)
 		_cuff_rim(wrist, trim, shirt.darkened(0.32))
-		_ellipsoid(wrist, "Mitten", Vector3(0, -0.659, 0.03), Vector3(0.09, 0.132, 0.087), skin)
-		_ellipsoid(wrist, "Thumb", Vector3(-side * 0.065, -0.634, 0.078), Vector3(0.041, 0.069, 0.049), skin)
+		_build_shared_hand(wrist, side, skin)
 	match outfit_style:
 		0, 1:
 			skirt_root = Node3D.new()
@@ -308,8 +387,9 @@ func _build_volume_body() -> void:
 
 
 func _build_volume_head() -> void:
-	var skin: Color = SKIN_TONES[skin_index]
+	var skin: Color = get_skin_color()
 	var hair := get_hair_color()
+	var eye := get_eye_color()
 	head_rig = Node3D.new()
 	head_rig.name = "HeadRig"
 	head_rig.position = Vector3(0, 2.02, 0.035)
@@ -318,7 +398,7 @@ func _build_volume_head() -> void:
 	for side in [-1.0, 1.0]:
 		_ellipsoid(head_rig, "Ear", Vector3(side * 0.267, 0.238, 0.01), Vector3(0.055, 0.076, 0.049), skin)
 		_ellipsoid(head_rig, "EarInner", Vector3(side * 0.287, 0.235, 0.047), Vector3(0.021, 0.036, 0.01), skin.darkened(0.12))
-		_ellipsoid(head_rig, "BeanEye", _face_point(side * 0.108, 0.292), Vector3(0.016, 0.03, 0.011), Color("292321")).set_meta("eye_state","open")
+		_ellipsoid(head_rig, "BeanEye", _face_point(side * 0.108, 0.292), Vector3(0.016, 0.03, 0.011), eye).set_meta("eye_state","open")
 		var eyelid_anchors := PackedVector2Array([
 			Vector2(side * .108 - .018, .292),
 			Vector2(side * .108, .285),
@@ -326,7 +406,7 @@ func _build_volume_head() -> void:
 		var eyelid_points := PackedVector3Array()
 		for point in Expressions.closed_eye_curve(eyelid_anchors):
 			eyelid_points.append(_face_point(point.x, point.y, .003))
-		var closed_eye := _tube(head_rig, "ClosedEye", eyelid_points, .004, Color("292321"))
+		var closed_eye := _tube(head_rig, "ClosedEye", eyelid_points, .004, eye.darkened(0.45) if eye.get_luminance() > 0.15 else Color("292321"))
 		closed_eye.set_meta("eye_state","closed")
 		closed_eye.set_meta("expression_feature","closed_eye")
 		closed_eye.hide()
@@ -347,7 +427,7 @@ func _build_volume_head() -> void:
 	if hair_style != 3: _hair_cap(hair)
 	match hair_style if not reference_costume else -1:
 		3:
-			preload("res://scripts/ukrainian_blender_mesh.gd").hair(hair_root)
+			preload("res://scripts/ukrainian_blender_mesh.gd").hair(hair_root, hair)
 		0:
 			for side in [-1.0, 1.0]:
 				var bun := _ellipsoid(hair_root, "LowBun", Vector3(side * 0.268, 0.075, -0.13), Vector3(0.116, 0.13, 0.126), hair)
@@ -645,26 +725,26 @@ func _update_pleated_skirt(delta: float) -> void:
 func _build_shoe(parent: Node3D, color: Color) -> void:
 	var shoe := Node3D.new()
 	shoe.name = "Shoe"
-	shoe.position = Vector3(0, -1.1, 0.095)
+	shoe.position = Vector3(0, -1.1, 0.145)
 	parent.add_child(shoe)
 	shoe.set_meta("design_id", "basic_shoes")
 	shoe.set_meta("culture_attribution", "")
 	shoe.set_meta("wiki_record_id", "WW-GEN-001")
 	if shoe_style == 1:
 		color = Color("684333")
-		_ellipsoid(shoe, "WhiteSockInstep", Vector3(0, .108, -.015), Vector3(.093, .083, .139), Color("efede5"))
+		_ellipsoid(shoe, "WhiteSockInstep", Vector3(0, .108, -.065), Vector3(.093, .083, .139), Color("efede5"))
 		var strap := PackedVector3Array()
 		for step in 17:
 			var angle := PI * step / 16.0
-			strap.append(Vector3(.108 * cos(angle), .096 + .102 * sin(angle), .008))
+			strap.append(Vector3(.108 * cos(angle), .096 + .102 * sin(angle), -.042))
 		_tube(shoe, "InstepStrap", strap, .008, color.darkened(.18))
-	var sole := _lathe(shoe, "FlatSole", [Vector3(.009,.134,.235),Vector3(.017,.141,.244),Vector3(.033,.141,.244)],color.darkened(.20),32)
+	var sole := _lathe(shoe, "FlatSole", [Vector3(.009,.134,.216),Vector3(.017,.141,.220),Vector3(.033,.141,.220)],color.darkened(.20),32,0.0,true,[],[-.002,-.002,-.002])
 	# Generic low shoe: rounded toe, closed vamp and a real open collar around
 	# the ankle. The last rows turn down inside the shoe instead of sealing it.
-	var rows := [Vector4(.033,.139,.241,0),Vector4(.070,.140,.238,0),
-		Vector4(.110,.131,.221,-.008),Vector4(.143,.110,.179,-.035),
-		Vector4(.158,.077,.111,-.064),Vector4(.151,.067,.101,-.064),
-		Vector4(.074,.062,.096,-.064),Vector4(.044,.056,.089,-.064)]
+	var rows := [Vector4(.033,.139,.220,-.002),Vector4(.070,.140,.218,-.002),
+		Vector4(.110,.131,.204,-.018),Vector4(.143,.110,.166,-.052),
+		Vector4(.158,.077,.111,-.098),Vector4(.151,.067,.101,-.098),
+		Vector4(.074,.062,.096,-.098),Vector4(.044,.056,.089,-.098)]
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
@@ -726,7 +806,24 @@ func _ellipsoid(parent: Node3D, label: String, center: Vector3, radius: Vector3,
 	return instance
 
 
-func _lathe(parent: Node3D, label: String, rings: Array, color: Color, segments: int = 24, folds: float = 0.0, caps: bool = true, x_offsets: Array = []) -> MeshInstance3D:
+func _build_shared_hand(parent: Node3D, side: float, color: Color) -> void:
+	var source: Dictionary = preload("res://assets/shared_hand.json").data
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var indices := PackedInt32Array(source.indices)
+	for p in source.vertices:
+		vertices.append(Vector3(p[0]*side, p[1]-.659, p[2]+.03))
+	for n in source.normals:
+		normals.append(Vector3(n[0]*side,n[1],n[2]))
+	if side < 0:
+		for i in range(0, indices.size(), 3):
+			var swap := indices[i]
+			indices[i] = indices[i+2]
+			indices[i+2] = swap
+	_mesh(parent,"Mitten",vertices,normals,indices,color)
+
+
+func _lathe(parent: Node3D, label: String, rings: Array, color: Color, segments: int = 24, folds: float = 0.0, caps: bool = true, x_offsets: Array = [], z_offsets: Array = []) -> MeshInstance3D:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
@@ -735,15 +832,17 @@ func _lathe(parent: Node3D, label: String, rings: Array, color: Color, segments:
 		var previous: Vector3 = rings[maxi(row - 1, 0)]
 		var next: Vector3 = rings[mini(row + 1, rings.size() - 1)]
 		var center_x: float = x_offsets[row] if not x_offsets.is_empty() else 0.0
+		var center_z: float = z_offsets[row] if not z_offsets.is_empty() else 0.0
 		for column in segments + 1:
 			var angle := TAU * column / segments
 			var modulation := 1.0 + folds * cos(angle * 8.0)
-			vertices.append(Vector3(center_x + sin(angle) * ring.y * modulation, ring.x, cos(angle) * ring.z * modulation))
+			vertices.append(Vector3(center_x + sin(angle) * ring.y * modulation, ring.x, center_z + cos(angle) * ring.z * modulation))
 			var slope := -((next.y - previous.y) + (next.z - previous.z)) * 0.5 / maxf(next.x - previous.x, 0.001)
 			var normal := Vector3(sin(angle) / maxf(ring.y, 0.01), slope / maxf(ring.y, 0.01), cos(angle) / maxf(ring.z, 0.01))
-			if not x_offsets.is_empty():
-				var dx: float = x_offsets[mini(row + 1, rings.size() - 1)] - x_offsets[maxi(row - 1, 0)]
-				normal.y = -(normal.x * (dx + sin(angle) * (next.y - previous.y)) + normal.z * cos(angle) * (next.z - previous.z)) / maxf(next.x - previous.x, 0.001)
+			if not x_offsets.is_empty() or not z_offsets.is_empty():
+				var dx: float = (x_offsets[mini(row + 1, rings.size() - 1)] - x_offsets[maxi(row - 1, 0)]) if not x_offsets.is_empty() else 0.0
+				var dz: float = (z_offsets[mini(row + 1, rings.size() - 1)] - z_offsets[maxi(row - 1, 0)]) if not z_offsets.is_empty() else 0.0
+				normal.y = -(normal.x * (dx + sin(angle) * (next.y - previous.y)) + normal.z * (dz + cos(angle) * (next.z - previous.z))) / maxf(next.x - previous.x, 0.001)
 			normals.append(normal.normalized())
 	for row in rings.size() - 1:
 		for column in segments:
@@ -755,7 +854,9 @@ func _lathe(parent: Node3D, label: String, rings: Array, color: Color, segments:
 			continue
 		var center_index := vertices.size()
 		var ring: Vector3 = rings[end]
-		vertices.append(Vector3(x_offsets[end] if not x_offsets.is_empty() else 0.0, ring.x, 0))
+		var cap_x: float = x_offsets[end] if not x_offsets.is_empty() else 0.0
+		var cap_z: float = z_offsets[end] if not z_offsets.is_empty() else 0.0
+		vertices.append(Vector3(cap_x, ring.x, cap_z))
 		normals.append(Vector3.DOWN if end == 0 else Vector3.UP)
 		for column in segments:
 			var a: int = end * (segments + 1) + column

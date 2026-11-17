@@ -139,14 +139,20 @@ static func fit_layer(rig: RefCounted, part: MeshInstance3D, mode: int) -> void:
 	for indices in shared.values():
 		var center := Vector3.ZERO
 		var normal := Vector3.ZERO
+		var maximum_gap := 0.0
 		for i in indices:
 			center += contacts[i]+world_normals[i]*clearances[i]
 			normal += world_normals[i]
+			maximum_gap = maxf(maximum_gap, clearances[i])
 		center /= indices.size()
+		var welded_anchor := center
 		for iteration in 12:
 			for i in indices:
 				var deficit: float = clearances[i]-(center-contacts[i]).dot(world_normals[i])
 				if deficit > 0: center += world_normals[i]*deficit
+			# Near a folded source edge the offset planes can be contradictory.
+			# Bound the correction instead of extruding a spike on every iteration.
+			center = welded_anchor + (center - welded_anchor).limit_length(maximum_gap * 1.5)
 		for i in indices:
 			vertices[i] = skin_transforms[i].affine_inverse()*center
 			normals[i] = (skin_transforms[i].basis.transposed()*normal).normalized()

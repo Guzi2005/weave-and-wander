@@ -1,0 +1,62 @@
+{
+  "schema": "ww-photo-landmarks-v1",
+  "record_id": "WW-UKR-001",
+  "source_image": "assets/collections/ukrainian_photo_001/source.jpg",
+  "source_sha256": "9CEC8B615FB7BC037CAF35C128D9288E7C9EDDFF3824D78DF95C9FCE6345C63C",
+  "source_size_px": [1200, 1800],
+  "annotation": {
+    "method": "manual",
+    "note": "Pixel landmarks read by eye on a 682x1024 downscale of source.jpg (same photo, 2:3). Estimated error about +/-5 px (about 0.6% of figure height). Only points visible in the photo are annotated; back and hidden joins are production inference, not evidence.",
+    "figure_top_px": 128,
+    "figure_sole_px": 995,
+    "figure_height_px": 867,
+    "pose_caveat": "The wearer is turning, so the skirt hem is raised on the viewer's right; hem values use the lowest, front-centre edge."
+  },
+  "landmarks_px": {
+    "chin": 265,
+    "shoulder_line": 300,
+    "ribbon_tail_end": 358,
+    "sash_top": 395,
+    "sash_bottom": 440,
+    "sleeve_cuff": 552,
+    "sash_tail_end": 562,
+    "tassel_end": 609,
+    "apron_hem": 838,
+    "overskirt_hem": 872,
+    "petticoat_hem": 885,
+    "sock_top": 893,
+    "shoe_top": 955
+  },
+  "figure_fraction_from_top": {
+    "chin": 0.158,
+    "ribbon_tail_end": 0.265,
+    "sash_top": 0.308,
+    "sash_bottom": 0.360,
+    "sleeve_cuff": 0.489,
+    "sash_tail_end": 0.500,
+    "tassel_end": 0.555,
+    "apron_hem": 0.819,
+    "overskirt_hem": 0.858,
+    "petticoat_hem": 0.873,
+    "sock_top": 0.883,
+    "shoe_top": 0.955
+  },
+  "doll_mapping": {
+    "note": "The shared VolumeDoll has a larger head than the wearer, so heights are mapped piecewise-linearly from two body anchors: chin -> doll y 2.01 and shoe top -> doll y 0.158. y = 2.01 - 2.324 * (fraction - 0.158). Units are doll metres.",
+    "anchors": { "chin_y": 2.01, "shoe_top_y": 0.158, "slope_per_fraction": -2.324 }
+  },
+  "doll_targets_y": {
+    "ribbon_tail_end": 1.75,
+    "sash_top": 1.65,
+    "sash_center": 1.595,
+    "sash_bottom": 1.53,
+    "sleeve_cuff": 1.21,
+    "sash_tail_end": 1.20,
+    "tassel_end": 1.07,
+    "apron_hem": 0.457,
+    "overskirt_hem": 0.367,
+    "petticoat_hem": 0.333,
+    "sock_top": 0.310
+  },
+  "tolerance_y": 0.04
+}

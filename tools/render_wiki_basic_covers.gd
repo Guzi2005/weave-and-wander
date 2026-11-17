@@ -1,9 +1,11 @@
 extends SceneTree
+const WikiPaths = preload("res://tools/wiki_paths.gd")
 
 func _initialize() -> void: run.call_deferred()
 
 func run() -> void:
-	var catalog = JSON.parse_string(FileAccess.get_file_as_string('res://tools/ww-wiki/public/assets/catalog.json'))
+	var assets_dir := WikiPaths.public_assets_dir()
+	var catalog = JSON.parse_string(FileAccess.get_file_as_string(assets_dir.path_join('catalog.json')))
 	for key in catalog.assets:
 		if not str(key).begins_with("WW-BASIC-"): continue
 		var entry = catalog.assets[key]
@@ -26,7 +28,7 @@ func run() -> void:
 		viewport.add_child(light)
 		var doc := GLTFDocument.new()
 		var state := GLTFState.new()
-		if doc.append_from_file('res://tools/ww-wiki/public/assets/models/'+entry.model+'.glb',state) != OK:
+		if doc.append_from_file(assets_dir.path_join('models').path_join(entry.model+'.glb'),state) != OK:
 			quit(1)
 			return
 		var model := doc.generate_scene(state)
@@ -46,7 +48,7 @@ func run() -> void:
 		camera.current = true
 		for i in 4: await process_frame
 		await RenderingServer.frame_post_draw
-		var filename='res://tools/ww-wiki/public/assets/'+entry.model+'-cover.png'
+		var filename=assets_dir.path_join(entry.model+'-cover.png')
 		viewport.get_texture().get_image().save_png(filename)
 		print(filename)
 		viewport.queue_free()

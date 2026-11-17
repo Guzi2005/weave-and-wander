@@ -48,6 +48,28 @@ func run() -> void:
 	assert(catalog.queue.size() == 2)
 	catalog._auto_random_order()
 	assert(catalog.queue.size() == 2)
+	# All four pools intersect, and multiple choices within a pool are allowed.
+	var sample: Dictionary = catalog.queue[0].snapshot
+	catalog.set_random_pool("colors", [(sample.pigment as Color).to_html(false)])
+	catalog.set_random_pool("materials", [str(sample.material)])
+	catalog.set_random_pool("patterns", [str(sample.pattern_code)])
+	catalog.set_random_pool("styles", ["1", "12"])
+	catalog.load_catalog()
+	for attempt in 6:
+		catalog.queue.clear()
+		catalog._auto_random_order()
+		assert(catalog.queue.size() == 1)
+		var filtered: Dictionary = catalog.queue[0].snapshot
+		assert(filtered.style in [1,12])
+		assert(filtered.pigment == sample.pigment)
+		assert(filtered.material == sample.material)
+		assert(filtered.pattern_code == sample.pattern_code)
+	catalog.set_random_pool("styles", ["unavailable"])
+	catalog.queue.clear()
+	catalog._auto_random_order()
+	assert(catalog.queue.is_empty())
+	for key in catalog.random_pools:
+		catalog.set_random_pool(key, [])
 	catalog.queue.clear()
 	for spool in catalog.ledger.thread_batches:
 		spool.meters = 0.0

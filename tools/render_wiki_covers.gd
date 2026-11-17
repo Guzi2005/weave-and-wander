@@ -1,20 +1,23 @@
 extends SceneTree
+const WikiPaths = preload("res://tools/wiki_paths.gd")
 
 func _initialize() -> void: run.call_deferred()
 
 func run() -> void:
-	var catalog = JSON.parse_string(FileAccess.get_file_as_string('res://tools/ww-wiki/public/assets/catalog.json'))
+	var assets_dir := WikiPaths.public_assets_dir()
+	var catalog = JSON.parse_string(FileAccess.get_file_as_string(assets_dir.path_join('catalog.json')))
 	for entry in catalog.assets.values():
 		if not OS.get_cmdline_user_args().is_empty() and not str(entry.model).begins_with(OS.get_cmdline_user_args()[0]): continue
 		var viewport := SubViewport.new()
 		viewport.size = Vector2i(600,760)
 		viewport.own_world_3d = true
+		viewport.transparent_bg = true
 		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		root.add_child(viewport)
 		var env := WorldEnvironment.new()
 		env.environment = Environment.new()
 		env.environment.background_mode = Environment.BG_COLOR
-		env.environment.background_color = Color('f0f1ee')
+		env.environment.background_color = Color(0,0,0,0)
 		env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.environment.ambient_light_color = Color.WHITE
 		env.environment.ambient_light_energy = .7
@@ -25,7 +28,7 @@ func run() -> void:
 		viewport.add_child(key)
 		var doc := GLTFDocument.new()
 		var state := GLTFState.new()
-		if doc.append_from_file('res://tools/ww-wiki/public/assets/models/'+entry.model+'.glb',state) != OK:
+		if doc.append_from_file(assets_dir.path_join('models').path_join(entry.model+'.glb'),state) != OK:
 			quit(1)
 			return
 		var model := doc.generate_scene(state)
@@ -33,6 +36,10 @@ func run() -> void:
 		var bounds := AABB()
 		var first := true
 		for part in model.find_children('*','MeshInstance3D',true,false):
+			for surface in part.mesh.get_surface_count():
+				var material: Material = part.get_active_material(surface)
+				if material is BaseMaterial3D and part.mesh.surface_get_format(surface) & Mesh.ARRAY_FORMAT_COLOR:
+					material.vertex_color_use_as_albedo = true
 			var box: AABB = part.global_transform * part.get_aabb()
 			bounds = box if first else bounds.merge(box)
 			first = false
@@ -45,7 +52,7 @@ func run() -> void:
 		camera.current = true
 		for i in 4: await process_frame
 		await RenderingServer.frame_post_draw
-		var filename='res://tools/ww-wiki/public/assets/'+entry.model+'-cover.png'
+		var filename=assets_dir.path_join(entry.model+'-cover.png')
 		viewport.get_texture().get_image().save_png(filename)
 		print(filename)
 		viewport.queue_free()

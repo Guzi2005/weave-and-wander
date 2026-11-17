@@ -244,6 +244,7 @@ func _run() -> void:
 		expect_color_at(rebuilt_vertices, colors, Vector3(.15, .5, .1), Color.GREEN.lerp(Color.BLUE, .5), "y=half_y cut B-C")
 		expect_color_at(rebuilt_vertices, colors, Vector3(-.15, .5, .1), Color.RED.lerp(Color.BLUE, .5), "y=half_y cut A-C")
 
+	colored_part.free()
 	reference.free()
 	stock.free()
 	wearer.free()

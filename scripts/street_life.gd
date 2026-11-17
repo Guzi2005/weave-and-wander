@@ -1,6 +1,6 @@
 extends Node3D
 
-const Doll = preload("res://scripts/volume_doll.gd")
+const Doll = preload("res://scripts/game_body_doll.gd")
 const PostalDoll = preload("res://scripts/postal_doll.gd")
 const Bicycle = preload("res://scripts/postal_bicycle.gd")
 const MOUNT_SECONDS := 1.2

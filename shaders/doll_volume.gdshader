@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 #include "res://shaders/pop_up.gdshaderinc"
+#include "res://shaders/cloth_contact.gdshaderinc"
 
 uniform vec4 pigment : source_color = vec4(0.7, 0.5, 0.4, 1.0);
 uniform float tooth = 0.075;
@@ -10,6 +11,7 @@ varying vec3 local_position;
 varying vec3 world_normal;
 
 void vertex() {
+	contact_cloth(VERTEX, NORMAL, BONE_INDICES, BONE_WEIGHTS, UV2);
 	local_position = VERTEX;
 	world_normal = MODEL_NORMAL_MATRIX * NORMAL;
 	fold_paper(VERTEX, NORMAL, MODEL_MATRIX);
